@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WatchParty - Saath Dekho</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0f0f1a; color: #fff; font-family: Arial, sans-serif; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+#home-screen { text-align: center; padding: 100px 20px; }
+#home-screen h1 { font-size: 3em; color: #e91e8c; margin-bottom: 10px; }
+#home-screen p { color: #aaa; margin-bottom: 40px; font-size: 1.2em; }
+.input-group { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+input { padding: 15px 25px; border-radius: 10px; border: 2px solid #e91e8c; background: #1a1a2e; color: #fff; font-size: 1em; width: 300px; outline: none; }
+button { padding: 15px 35px; border-radius: 10px; border: none; background: #e91e8c; color: #fff; font-size: 1em; cursor: pointer; width: 300px; }
+button:hover { background: #c2185b; }
+#party-screen { display: none; }
+.top-bar { background: #1a1a2e; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; }
+.top-bar h2 { color: #e91e8c; }
+#room-id-display { color: #aaa; font-size: 0.9em; }
+.main-area { display: flex; gap: 15px; padding: 15px; height: calc(100vh - 70px); }
+.video-section { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+#youtube-url { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #333; background: #1a1a2e; color: #fff; font-size: 0.95em; outline: none; }
+#player { width: 100%; border-radius: 10px; background: #000; flex: 1; min-height: 300px; }
+.controls { display: flex; gap: 10px; }
+.controls button { width: auto; padding: 10px 20px; font-size: 0.9em; }
+#sync-btn { background: #4caf50; }
+#mic-btn { background: #2196f3; }
+#mic-btn.active { background: #f44336; }
+.side-panel { width: 280px; display: flex; flex-direction: column; gap: 10px; }
+.users-box, .chat-box { background: #1a1a2e; border-radius: 10px; padding: 15px; }
+.users-box h3, .chat-box h3 { color: #e91e8c; margin-bottom: 10px; font-size: 0.95em; }
+#users-list { list-style: none; }
+#users-list li { padding: 5px 0; color: #ccc; font-size: 0.9em; }
+#users-list li::before { content: "🟢 "; }
+.chat-box { flex: 1; display: flex; flex-direction: column; }
+#messages { flex: 1; overflow-y: auto; margin-bottom: 10px; max-height: 300px; }
+#messages div { padding: 6px 0; border-bottom: 1px solid #2a2a3e; font-size: 0.88em; color: #ddd; }
+#messages div span { color: #e91e8c; font-weight: bold; }
+.chat-input { display: flex; gap: 8px; }
+#msg-input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #0f0f1a; color: #fff; font-size: 0.9em; outline: none; }
+#send-btn { width: auto; padding: 10px 15px; font-size: 0.9em; }
+@media(max-width: 768px) {
+  .main-area { flex-direction: column; height: auto; }
+  .side-panel { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div id="home-screen">
+  <h1>🎬 WatchParty</h1>
+  <p>Apne dosto ke saath movies aur dramas saath dekho!</p>
+  <div class="input-group">
+    <input type="text" id="username-input" placeholder="Apna naam likho..." />
+    <button onclick="createRoom()">🏠 Naya Room Banao</button>
+    <input type="text" id="join-room-input" placeholder="Room ID likho..." />
+    <button onclick="joinRoom()" style="background:#673ab7">🔗 Room Join Karo</button>
+  </div>
+</div>
+
+<div id="party-screen">
+  <div class="top-bar">
+    <h2>🎬 WatchParty</h2>
+    <span id="room-id-display"></span>
+    <button onclick="copyRoomId()" style="width:auto;padding:8px 15px;font-size:0.85em">📋 Link Copy Karo</button>
+  </div>
+  <div class="main-area">
+    <div class="video-section">
+      <input type="text" id="youtube-url" placeholder="YouTube link paste karo aur Enter dabao..." onkeydown="if(event.key==='Enter') loadVideo()" />
+      <div id="player"></div>
+      <div class="controls">
+        <button id="sync-btn" onclick="syncVideo()">🔄 Sync Karo</button>
+        <button id="mic-btn" onclick="toggleMic()">🎙️ Mic ON</button>
+      </div>
+    </div>
+    <div class="side-panel">
+      <div class="users-box">
+        <h3>👥 Online Users</h3>
+        <ul id="users-list"></ul>
+      </div>
+      <div class="chat-box">
+        <h3>💬 Live Chat</h3>
+        <div id="messages"></div>
+        <div class="chat-input">
+          <input type="text" id="msg-input" placeholder="Message..." onkeydown="if(event.key==='Enter') sendMessage()" />
+          <button id="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let roomId = '';
+let username = '';
+let player = null;
+let micStream = null;
+let isMicOn = false;
+let peerConnections = {};
+
+// YouTube Player
+const tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+document.head.appendChild(tag);
+
+function onYouTubeIframeAPIReady() {}
+
+function loadVideo() {
+  const url = document.getElementById('youtube-url').value;
+  const videoId = extractYouTubeId(url);
+  if (!videoId) return alert('Sahi YouTube link dalo!');
+  if (player) {
+    player.loadVideoById(videoId);
+  } else {
+    player = new YT.Player('player', {
+      videoId: videoId,
+      playerVars: { autoplay: 1, controls: 1 },
+      events: {
+        onStateChange: onPlayerStateChange
+      }
+    });
+  }
+  socket.emit('video-sync', roomId, { action: 'load', videoId, time: 0 });
+}
+
+function extractYouTubeId(url) {
+  const match = url.match(/(?:v=|youtu\.be\/)([^&\n?#]+)/);
+  return match ? match[1] : null;
+}
+
+function onPlayerStateChange(event) {
+  if (!player) return;
+  const time = player.getCurrentTime();
+  if (event.data === YT.PlayerState.PLAYING) {
+    socket.emit('video-sync', roomId, { action: 'play', time });
+  } else if (event.data === YT.PlayerState.PAUSED) {
+    socket.emit('video-sync', roomId, { action: 'pause', time });
+  }
+}
+
+function syncVideo() {
+  if (!player) return;
+  const time = player.getCurrentTime();
+  socket.emit('video-sync', roomId, { action: 'sync', time });
+  alert('Sync ho gaya! ✅');
+}
+
+socket.on('video-sync', (data) => {
+  if (!player) return;
+  if (data.action === 'load') {
+    player.loadVideoById(data.videoId);
+  } else if (data.action === 'play') {
+    player.seekTo(data.time, true);
+    player.playVideo();
+  } else if (data.action === 'pause') {
+    player.seekTo(data.time, true);
+    player.pauseVideo();
+  } else if (data.action === 'sync') {
+    player.seekTo(data.time, true);
+  }
+});
+
+// Room functions
+function createRoom() {
+  username = document.getElementById('username-input').value.trim();
+  if (!username) return alert('Pehle apna naam likho!');
+  roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
+  enterParty();
+}
+
+function joinRoom() {
+  username = document.getElementById('username-input').value.trim();
+  const inputRoom = document.getElementById('join-room-input').value.trim().toUpperCase();
+  if (!username) return alert('Pehle apna naam likho!');
+  if (!inputRoom) return alert('Room ID likho!');
+  roomId = inputRoom;
+  enterParty();
+}
+
+function enterParty() {
+  document.getElementById('home-screen').style.display = 'none';
+  document.getElementById('party-screen').style.display = 'block';
+  document.getElementById('room-id-display').textContent = 'Room: ' + roomId;
+  socket.emit('join-room', roomId, username);
+}
+
+function copyRoomId() {
+  navigator.clipboard.writeText(roomId);
+  alert('Room ID copy ho gaya: ' + roomId + '\nDosto ko bhejo! 🎉');
+}
+
+// Chat
+function sendMessage() {
+  const msg = document.getElementById('msg-input').value.trim();
+  if (!msg) return;
+  socket.emit('chat-message', roomId, username, msg);
+  document.getElementById('msg-input').value = '';
+}
+
+socket.on('chat-message', (user, msg) => {
+  const div = document.createElement('div');
+  div.innerHTML = `<span>${user}:</span> ${msg}`;
+  const messages = document.getElementById('messages');
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+});
+
+// Users
+socket.on('user-joined', (user, users) => {
+  const list = document.getElementById('users-list');
+  list.innerHTML = '';
+  users.forEach(u => {
+    const li = document.createElement('li');
+    li.textContent = u;
+    list.appendChild(li);
+  });
+  if (user !== username) {
+    const div = document.createElement('div');
+    div.innerHTML = `<span>System:</span> ${user} join ho gaya! 🎉`;
+    document.getElementById('messages').appendChild(div);
+  }
+});
+
+// Mic / Voice Chat (WebRTC)
+async function toggleMic() {
+  const btn = document.getElementById('mic-btn');
+  if (!isMicOn) {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      isMicOn = true;
+      btn.textContent = '🎙️ Mic OFF';
+      btn.classList.add('active');
+    } catch(e) {
+      alert('Mic permission do browser mein!');
+    }
+  } else {
+    if (micStream) micStream.getTracks().forEach(t => t.stop());
+    isMicOn = false;
+    btn.textContent = '🎙️ Mic ON';
+    btn.classList.remove('active');
+  }
+}
+</script>
+</body>
+</html>
