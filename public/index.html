@@ -7,18 +7,40 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #0f0f1a; color: #fff; font-family: Arial, sans-serif; }
-#home-screen { text-align: center; padding: 80px 20px; }
-#home-screen h1 { font-size: 2.5em; color: #e91e8c; margin-bottom: 10px; }
-#home-screen p { color: #aaa; margin-bottom: 40px; }
-.input-group { display: flex; flex-direction: column; align-items: center; gap: 15px; }
-input { padding: 15px 25px; border-radius: 10px; border: 2px solid #e91e8c; background: #1a1a2e; color: #fff; font-size: 1em; width: 300px; outline: none; }
-button { padding: 15px 35px; border-radius: 10px; border: none; background: #e91e8c; color: #fff; font-size: 1em; cursor: pointer; width: 300px; }
-button:hover { opacity: 0.85; }
+
+/* Auth Screens */
+#auth-screen { text-align: center; padding: 60px 20px; }
+#auth-screen h1 { font-size: 2.5em; color: #e91e8c; margin-bottom: 5px; }
+#auth-screen p { color: #aaa; margin-bottom: 30px; }
+.auth-box { background: #1a1a2e; border-radius: 15px; padding: 30px; max-width: 350px; margin: 0 auto; }
+.auth-tabs { display: flex; margin-bottom: 25px; border-radius: 10px; overflow: hidden; }
+.auth-tab { flex: 1; padding: 12px; border: none; cursor: pointer; font-size: 1em; font-weight: bold; }
+.auth-tab.active { background: #e91e8c; color: #fff; }
+.auth-tab:not(.active) { background: #2a2a3e; color: #aaa; }
+.auth-input { width: 100%; padding: 12px 15px; border-radius: 8px; border: 2px solid #333; background: #0f0f1a; color: #fff; font-size: 0.95em; outline: none; margin-bottom: 12px; }
+.auth-input:focus { border-color: #e91e8c; }
+.auth-btn { width: 100%; padding: 13px; border-radius: 8px; border: none; background: #e91e8c; color: #fff; font-size: 1em; cursor: pointer; font-weight: bold; }
+.auth-btn:hover { background: #c2185b; }
+.auth-error { color: #f44336; font-size: 0.85em; margin-bottom: 10px; display: none; }
+.auth-success { color: #4caf50; font-size: 0.85em; margin-bottom: 10px; display: none; }
+
+/* Home Screen */
+#home-screen { display: none; text-align: center; padding: 60px 20px; }
+#home-screen h1 { font-size: 2.2em; color: #e91e8c; margin-bottom: 5px; }
+.welcome-text { color: #aaa; margin-bottom: 10px; }
+.user-info { background: #1a1a2e; border-radius: 10px; padding: 15px; max-width: 350px; margin: 0 auto 25px; display: flex; align-items: center; justify-content: space-between; }
+.user-info span { color: #e91e8c; font-weight: bold; }
+.logout-btn { padding: 6px 12px; border-radius: 6px; border: none; background: #f44336; color: #fff; cursor: pointer; font-size: 0.85em; }
+.room-box { max-width: 350px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.room-input { width: 100%; padding: 13px 15px; border-radius: 8px; border: 2px solid #e91e8c; background: #1a1a2e; color: #fff; font-size: 0.95em; outline: none; }
+.room-btn { width: 100%; padding: 13px; border-radius: 8px; border: none; color: #fff; font-size: 1em; cursor: pointer; font-weight: bold; }
+
+/* Party Screen */
 #party-screen { display: none; flex-direction: column; height: 100vh; }
 .top-bar { background: #1a1a2e; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .top-bar h2 { color: #e91e8c; font-size: 1.1em; }
 .top-bar-btns { display: flex; gap: 8px; flex-wrap: wrap; }
-.top-bar-btns button { width: auto; padding: 8px 12px; font-size: 0.8em; }
+.top-bar-btns button { padding: 8px 12px; font-size: 0.8em; border-radius: 8px; border: none; color: #fff; cursor: pointer; }
 #btn-youtube { background: #ff0000; }
 #btn-screen { background: #9c27b0; }
 #btn-mic { background: #2196f3; }
@@ -27,14 +49,13 @@ button:hover { opacity: 0.85; }
 .main-area { display: flex; gap: 10px; padding: 10px; flex: 1; overflow: hidden; }
 .video-section { flex: 1; display: flex; flex-direction: column; gap: 10px; }
 #url-bar { display: none; gap: 8px; }
-#url-bar input { flex: 1; width: auto; padding: 10px; font-size: 0.9em; }
-#url-bar button { width: auto; padding: 10px 15px; font-size: 0.9em; background: #ff0000; }
+#url-bar input { flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #333; background: #1a1a2e; color: #fff; font-size: 0.9em; outline: none; }
+#url-bar button { padding: 10px 15px; border-radius: 8px; border: none; background: #ff0000; color: #fff; cursor: pointer; }
 #player-container { flex: 1; background: #000; border-radius: 10px; overflow: hidden; position: relative; min-height: 250px; }
 #player { width: 100%; height: 100%; }
-#screen-video { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; border-radius: 10px; }
-#remote-screen-video { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; border-radius: 10px; }
+#screen-video { width: 100%; height: 100%; object-fit: contain; display: none; }
+#remote-screen-video { width: 100%; height: 100%; object-fit: contain; display: none; }
 #screen-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: #555; font-size: 1em; text-align: center; padding: 20px; flex-direction: column; gap: 10px; }
-#screen-placeholder p { color: #777; font-size: 0.85em; }
 .side-panel { width: 260px; display: flex; flex-direction: column; gap: 10px; }
 .users-box { background: #1a1a2e; border-radius: 10px; padding: 12px; }
 .users-box h3 { color: #e91e8c; margin-bottom: 8px; font-size: 0.9em; }
@@ -47,8 +68,8 @@ button:hover { opacity: 0.85; }
 #messages div { padding: 5px 0; border-bottom: 1px solid #2a2a3e; font-size: 0.85em; color: #ddd; }
 #messages div span { color: #e91e8c; font-weight: bold; }
 .chat-input { display: flex; gap: 8px; }
-#msg-input { flex: 1; width: auto; padding: 8px; border-radius: 8px; border: 1px solid #333; background: #0f0f1a; color: #fff; font-size: 0.85em; outline: none; }
-#send-btn { width: auto; padding: 8px 12px; font-size: 0.85em; }
+#msg-input { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #333; background: #0f0f1a; color: #fff; font-size: 0.85em; outline: none; }
+#send-btn { padding: 8px 12px; border-radius: 8px; border: none; background: #e91e8c; color: #fff; cursor: pointer; }
 @media(max-width: 768px) {
   .main-area { flex-direction: column; }
   .side-panel { width: 100%; }
@@ -57,17 +78,52 @@ button:hover { opacity: 0.85; }
 </head>
 <body>
 
-<div id="home-screen">
+<!-- Auth Screen -->
+<div id="auth-screen">
   <h1>🎬 WatchParty</h1>
   <p>Apne dosto ke saath movies aur dramas saath dekho!</p>
-  <div class="input-group">
-    <input type="text" id="username-input" placeholder="Apna naam likho..." />
-    <button onclick="createRoom()">🏠 Naya Room Banao</button>
-    <input type="text" id="join-room-input" placeholder="Room ID likho..." />
-    <button onclick="joinRoom()" style="background:#673ab7">🔗 Room Join Karo</button>
+  <div class="auth-box">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Login</button>
+      <button class="auth-tab" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-form">
+      <div class="auth-error" id="login-error"></div>
+      <input class="auth-input" type="email" id="login-email" placeholder="Email..." />
+      <input class="auth-input" type="password" id="login-password" placeholder="Password..." />
+      <button class="auth-btn" onclick="login()">🔐 Login Karo</button>
+    </div>
+
+    <!-- Register Form -->
+    <div id="register-form" style="display:none">
+      <div class="auth-error" id="register-error"></div>
+      <div class="auth-success" id="register-success"></div>
+      <input class="auth-input" type="text" id="reg-username" placeholder="Username..." />
+      <input class="auth-input" type="email" id="reg-email" placeholder="Email..." />
+      <input class="auth-input" type="password" id="reg-password" placeholder="Password..." />
+      <button class="auth-btn" onclick="register()">✅ Register Karo</button>
+    </div>
   </div>
 </div>
 
+<!-- Home Screen -->
+<div id="home-screen">
+  <h1>🎬 WatchParty</h1>
+  <p class="welcome-text">Swagat hai!</p>
+  <div class="user-info">
+    <span id="logged-username">👤 User</span>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+  <div class="room-box">
+    <button class="room-btn" style="background:#e91e8c" onclick="createRoom()">🏠 Naya Room Banao</button>
+    <input class="room-input" type="text" id="join-room-input" placeholder="Room ID likho..." />
+    <button class="room-btn" style="background:#673ab7" onclick="joinRoom()">🔗 Room Join Karo</button>
+  </div>
+</div>
+
+<!-- Party Screen -->
 <div id="party-screen">
   <div class="top-bar">
     <h2>🎬 WatchParty</h2>
@@ -89,7 +145,6 @@ button:hover { opacity: 0.85; }
         <div id="screen-placeholder">
           <span style="font-size:2em">🎬</span>
           <span>YouTube ya Screen Share karo</span>
-          <p>Netflix, Motion, koi bhi app screen share se dekho!</p>
         </div>
         <div id="player"></div>
         <video id="screen-video" autoplay playsinline muted></video>
@@ -125,21 +180,108 @@ let isMicOn = false;
 let isSyncing = false;
 let urlBarVisible = false;
 let peerConnection = null;
-let mySocketId = null;
+let token = localStorage.getItem('wp_token');
+let savedUsername = localStorage.getItem('wp_username');
 
 const iceConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
-    }
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
   ]
 };
 
-socket.on('connect', () => { mySocketId = socket.id; });
+// Check if already logged in
+if (token && savedUsername) {
+  username = savedUsername;
+  showHomeScreen();
+}
+
+function switchTab(tab) {
+  document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+  document.querySelectorAll('.auth-tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
+  });
+}
+
+async function register() {
+  const username = document.getElementById('reg-username').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const error = document.getElementById('register-error');
+  const success = document.getElementById('register-success');
+
+  if (!username || !email || !password) {
+    error.textContent = 'Sab fields bharo!';
+    error.style.display = 'block';
+    return;
+  }
+
+  const res = await fetch('/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email, password })
+  });
+  const data = await res.json();
+
+  if (data.success) {
+    error.style.display = 'none';
+    success.textContent = 'Register ho gaya! Ab login karo!';
+    success.style.display = 'block';
+    setTimeout(() => switchTab('login'), 1500);
+  } else {
+    success.style.display = 'none';
+    error.textContent = data.message;
+    error.style.display = 'block';
+  }
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const error = document.getElementById('login-error');
+
+  if (!email || !password) {
+    error.textContent = 'Email aur password dono bharo!';
+    error.style.display = 'block';
+    return;
+  }
+
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+
+  if (data.success) {
+    localStorage.setItem('wp_token', data.token);
+    localStorage.setItem('wp_username', data.username);
+    token = data.token;
+    username = data.username;
+    showHomeScreen();
+  } else {
+    error.textContent = data.message;
+    error.style.display = 'block';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('wp_token');
+  localStorage.removeItem('wp_username');
+  token = null;
+  username = '';
+  document.getElementById('home-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'block';
+}
+
+function showHomeScreen() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('party-screen').style.display = 'none';
+  document.getElementById('home-screen').style.display = 'block';
+  document.getElementById('logged-username').textContent = '👤 ' + username;
+}
 
 // YouTube API
 const tag = document.createElement('script');
@@ -206,54 +348,28 @@ socket.on('video-sync', (data) => {
   setTimeout(() => { isSyncing = false; }, 1000);
 });
 
-// Screen Share (WebRTC)
 async function startScreenShare() {
   try {
-    if (screenStream) {
-      stopScreenShare();
-      return;
-    }
-    screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: 15 },
-      audio: true
-    });
-
+    if (screenStream) { stopScreenShare(); return; }
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: true });
     const localVideo = document.getElementById('screen-video');
     localVideo.srcObject = screenStream;
     localVideo.style.display = 'block';
     document.getElementById('screen-placeholder').style.display = 'none';
     document.getElementById('btn-screen').textContent = '🖥️ Share Band Karo';
     document.getElementById('btn-screen').style.background = '#f44336';
-
     socket.emit('screen-share-started', roomId);
-
-    // Create peer connection
     peerConnection = new RTCPeerConnection(iceConfig);
-    screenStream.getTracks().forEach(track => {
-      peerConnection.addTrack(track, screenStream);
-    });
-
-    if (micStream) {
-      micStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, micStream);
-      });
-    }
-
-    peerConnection.onicecandidate = (e) => {
-      if (e.candidate) {
-        socket.emit('webrtc-ice', roomId, e.candidate);
-      }
-    };
-
+    screenStream.getTracks().forEach(track => peerConnection.addTrack(track, screenStream));
+    if (micStream) micStream.getTracks().forEach(track => peerConnection.addTrack(track, micStream));
+    peerConnection.onicecandidate = (e) => { if (e.candidate) socket.emit('webrtc-ice', roomId, e.candidate); };
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
     socket.emit('webrtc-offer', roomId, offer);
-
     screenStream.getVideoTracks()[0].onended = stopScreenShare;
-    addMessage('System', '🖥️ Screen share shuru! Dost ko dikha raha hai!');
-
+    addMessage('System', '🖥️ Screen share shuru!');
   } catch(e) {
-    addMessage('System', '❌ Screen share nahi hua — permission do ya browser support check karo!');
+    addMessage('System', '❌ Screen share nahi hua!');
   }
 }
 
@@ -266,27 +382,17 @@ function stopScreenShare() {
   document.getElementById('btn-screen').textContent = '🖥️ Screen Share';
   document.getElementById('btn-screen').style.background = '#9c27b0';
   socket.emit('screen-share-stopped', roomId);
-  addMessage('System', '🖥️ Screen share band ho gaya!');
 }
 
-// WebRTC Signaling
 socket.on('webrtc-offer', async (fromId, offer) => {
   peerConnection = new RTCPeerConnection(iceConfig);
-
   peerConnection.ontrack = (e) => {
     const remoteVideo = document.getElementById('remote-screen-video');
     remoteVideo.srcObject = e.streams[0];
     remoteVideo.style.display = 'block';
     document.getElementById('screen-placeholder').style.display = 'none';
-    document.getElementById('screen-video').style.display = 'none';
   };
-
-  peerConnection.onicecandidate = (e) => {
-    if (e.candidate) {
-      socket.emit('webrtc-ice', fromId, e.candidate);
-    }
-  };
-
+  peerConnection.onicecandidate = (e) => { if (e.candidate) socket.emit('webrtc-ice', fromId, e.candidate); };
   await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
   const answer = await peerConnection.createAnswer();
   await peerConnection.setLocalDescription(answer);
@@ -294,15 +400,11 @@ socket.on('webrtc-offer', async (fromId, offer) => {
 });
 
 socket.on('webrtc-answer', async (fromId, answer) => {
-  if (peerConnection) {
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-  }
+  if (peerConnection) await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
 });
 
 socket.on('webrtc-ice', async (fromId, candidate) => {
-  if (peerConnection) {
-    try { await peerConnection.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e) {}
-  }
+  if (peerConnection) { try { await peerConnection.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e) {} }
 });
 
 socket.on('screen-share-started', (fromId, fromUsername) => {
@@ -320,18 +422,14 @@ socket.on('peer-disconnected', () => {
   document.getElementById('remote-screen-video').style.display = 'none';
 });
 
-// Room
 function createRoom() {
-  username = document.getElementById('username-input').value.trim();
-  if (!username) return alert('Pehle apna naam likho!');
+  if (!username) return alert('Pehle login karo!');
   roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
   enterParty();
 }
 
 function joinRoom() {
-  username = document.getElementById('username-input').value.trim();
   const inputRoom = document.getElementById('join-room-input').value.trim().toUpperCase();
-  if (!username) return alert('Pehle apna naam likho!');
   if (!inputRoom) return alert('Room ID likho!');
   roomId = inputRoom;
   enterParty();
@@ -349,7 +447,6 @@ function copyRoomId() {
   alert('Room ID copy ho gaya: ' + roomId + '\nDosto ko bhejo! 🎉');
 }
 
-// Chat
 function sendMessage() {
   const msg = document.getElementById('msg-input').value.trim();
   if (!msg) return;
@@ -389,7 +486,6 @@ socket.on('user-left', (user, users) => {
   addMessage('System', user + ' chala gaya! 👋');
 });
 
-// Mic
 async function toggleMic() {
   const btn = document.getElementById('btn-mic');
   if (!isMicOn) {
@@ -399,7 +495,7 @@ async function toggleMic() {
       btn.textContent = '🎙️ Mic OFF';
       btn.classList.add('active');
     } catch(e) {
-      alert('Mic permission do browser mein!');
+      alert('Mic permission do!');
     }
   } else {
     if (micStream) micStream.getTracks().forEach(t => t.stop());
