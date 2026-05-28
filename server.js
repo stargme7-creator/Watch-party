@@ -14,8 +14,12 @@ const rooms = {};
 io.on('connection', (socket) => {
   socket.on('join-room', (roomId, username) => {
     socket.join(roomId);
+    socket.username = username;
+    socket.roomId = roomId;
     if (!rooms[roomId]) rooms[roomId] = [];
-    rooms[roomId].push(username);
+    if (!rooms[roomId].includes(username)) {
+      rooms[roomId].push(username);
+    }
     io.to(roomId).emit('user-joined', username, rooms[roomId]);
   });
 
@@ -28,8 +32,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    for (let roomId in rooms) {
-      rooms[roomId] = rooms[roomId].filter(u => u !== socket.username);
+    const roomId = socket.roomId;
+    const username = socket.username;
+    if (roomId && rooms[roomId]) {
+      rooms[roomId] = rooms[roomId].filter(u => u !== username);
+      io.to(roomId).emit('user-left', username, rooms[roomId]);
     }
   });
 });
