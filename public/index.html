@@ -7,42 +7,50 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #0f0f1a; color: #fff; font-family: Arial, sans-serif; }
-.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-#home-screen { text-align: center; padding: 100px 20px; }
-#home-screen h1 { font-size: 3em; color: #e91e8c; margin-bottom: 10px; }
-#home-screen p { color: #aaa; margin-bottom: 40px; font-size: 1.2em; }
+#home-screen { text-align: center; padding: 80px 20px; }
+#home-screen h1 { font-size: 2.5em; color: #e91e8c; margin-bottom: 10px; }
+#home-screen p { color: #aaa; margin-bottom: 40px; }
 .input-group { display: flex; flex-direction: column; align-items: center; gap: 15px; }
 input { padding: 15px 25px; border-radius: 10px; border: 2px solid #e91e8c; background: #1a1a2e; color: #fff; font-size: 1em; width: 300px; outline: none; }
 button { padding: 15px 35px; border-radius: 10px; border: none; background: #e91e8c; color: #fff; font-size: 1em; cursor: pointer; width: 300px; }
-button:hover { background: #c2185b; }
-#party-screen { display: none; }
-.top-bar { background: #1a1a2e; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; }
-.top-bar h2 { color: #e91e8c; }
-#room-id-display { color: #aaa; font-size: 0.9em; }
-.main-area { display: flex; gap: 15px; padding: 15px; height: calc(100vh - 70px); }
+button:hover { opacity: 0.85; }
+#party-screen { display: none; flex-direction: column; height: 100vh; }
+.top-bar { background: #1a1a2e; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.top-bar h2 { color: #e91e8c; font-size: 1.1em; }
+.top-bar-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.top-bar-btns button { width: auto; padding: 8px 12px; font-size: 0.8em; }
+#btn-youtube { background: #ff0000; }
+#btn-screen { background: #9c27b0; }
+#btn-mic { background: #2196f3; }
+#btn-mic.active { background: #f44336; }
+#btn-copy { background: #4caf50; }
+.main-area { display: flex; gap: 10px; padding: 10px; flex: 1; overflow: hidden; }
 .video-section { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-#youtube-url { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #333; background: #1a1a2e; color: #fff; font-size: 0.95em; outline: none; }
-#player { width: 100%; border-radius: 10px; background: #000; flex: 1; min-height: 300px; }
-.controls { display: flex; gap: 10px; }
-.controls button { width: auto; padding: 10px 20px; font-size: 0.9em; }
-#sync-btn { background: #4caf50; }
-#mic-btn { background: #2196f3; }
-#mic-btn.active { background: #f44336; }
-.side-panel { width: 280px; display: flex; flex-direction: column; gap: 10px; }
-.users-box, .chat-box { background: #1a1a2e; border-radius: 10px; padding: 15px; }
-.users-box h3, .chat-box h3 { color: #e91e8c; margin-bottom: 10px; font-size: 0.95em; }
+#url-bar { display: none; gap: 8px; }
+#url-bar input { flex: 1; width: auto; padding: 10px; font-size: 0.9em; }
+#url-bar button { width: auto; padding: 10px 15px; font-size: 0.9em; background: #ff0000; }
+#player-container { flex: 1; background: #000; border-radius: 10px; overflow: hidden; position: relative; min-height: 250px; }
+#player { width: 100%; height: 100%; }
+#screen-video { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; border-radius: 10px; }
+#remote-screen-video { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; border-radius: 10px; }
+#screen-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: #555; font-size: 1em; text-align: center; padding: 20px; flex-direction: column; gap: 10px; }
+#screen-placeholder p { color: #777; font-size: 0.85em; }
+.side-panel { width: 260px; display: flex; flex-direction: column; gap: 10px; }
+.users-box { background: #1a1a2e; border-radius: 10px; padding: 12px; }
+.users-box h3 { color: #e91e8c; margin-bottom: 8px; font-size: 0.9em; }
 #users-list { list-style: none; }
-#users-list li { padding: 5px 0; color: #ccc; font-size: 0.9em; }
+#users-list li { padding: 4px 0; color: #ccc; font-size: 0.85em; }
 #users-list li::before { content: "🟢 "; }
-.chat-box { flex: 1; display: flex; flex-direction: column; }
-#messages { flex: 1; overflow-y: auto; margin-bottom: 10px; max-height: 300px; }
-#messages div { padding: 6px 0; border-bottom: 1px solid #2a2a3e; font-size: 0.88em; color: #ddd; }
+.chat-box { background: #1a1a2e; border-radius: 10px; padding: 12px; flex: 1; display: flex; flex-direction: column; }
+.chat-box h3 { color: #e91e8c; margin-bottom: 8px; font-size: 0.9em; }
+#messages { flex: 1; overflow-y: auto; margin-bottom: 10px; max-height: 280px; }
+#messages div { padding: 5px 0; border-bottom: 1px solid #2a2a3e; font-size: 0.85em; color: #ddd; }
 #messages div span { color: #e91e8c; font-weight: bold; }
 .chat-input { display: flex; gap: 8px; }
-#msg-input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #0f0f1a; color: #fff; font-size: 0.9em; outline: none; }
-#send-btn { width: auto; padding: 10px 15px; font-size: 0.9em; }
+#msg-input { flex: 1; width: auto; padding: 8px; border-radius: 8px; border: 1px solid #333; background: #0f0f1a; color: #fff; font-size: 0.85em; outline: none; }
+#send-btn { width: auto; padding: 8px 12px; font-size: 0.85em; }
 @media(max-width: 768px) {
-  .main-area { flex-direction: column; height: auto; }
+  .main-area { flex-direction: column; }
   .side-panel { width: 100%; }
 }
 </style>
@@ -63,16 +71,29 @@ button:hover { background: #c2185b; }
 <div id="party-screen">
   <div class="top-bar">
     <h2>🎬 WatchParty</h2>
-    <span id="room-id-display"></span>
-    <button onclick="copyRoomId()" style="width:auto;padding:8px 15px;font-size:0.85em">📋 Link Copy Karo</button>
+    <span id="room-id-display" style="color:#aaa;font-size:0.85em"></span>
+    <div class="top-bar-btns">
+      <button id="btn-youtube" onclick="toggleUrlBar()">📺 YouTube</button>
+      <button id="btn-screen" onclick="startScreenShare()">🖥️ Screen Share</button>
+      <button id="btn-mic" onclick="toggleMic()">🎙️ Mic ON</button>
+      <button id="btn-copy" onclick="copyRoomId()">📋 Room ID</button>
+    </div>
   </div>
   <div class="main-area">
     <div class="video-section">
-      <input type="text" id="youtube-url" placeholder="YouTube link paste karo aur Enter dabao..." onkeydown="if(event.key==='Enter') loadVideo()" />
-      <div id="player"></div>
-      <div class="controls">
-        <button id="sync-btn" onclick="syncVideo()">🔄 Sync Karo</button>
-        <button id="mic-btn" onclick="toggleMic()">🎙️ Mic ON</button>
+      <div id="url-bar">
+        <input type="text" id="youtube-url" placeholder="YouTube link paste karo..." onkeydown="if(event.key==='Enter') loadVideo()" />
+        <button onclick="loadVideo()">▶ Chalao</button>
+      </div>
+      <div id="player-container">
+        <div id="screen-placeholder">
+          <span style="font-size:2em">🎬</span>
+          <span>YouTube ya Screen Share karo</span>
+          <p>Netflix, Motion, koi bhi app screen share se dekho!</p>
+        </div>
+        <div id="player"></div>
+        <video id="screen-video" autoplay playsinline muted></video>
+        <video id="remote-screen-video" autoplay playsinline></video>
       </div>
     </div>
     <div class="side-panel">
@@ -99,29 +120,54 @@ let roomId = '';
 let username = '';
 let player = null;
 let micStream = null;
+let screenStream = null;
 let isMicOn = false;
-let peerConnections = {};
+let isSyncing = false;
+let urlBarVisible = false;
+let peerConnection = null;
+let mySocketId = null;
 
-// YouTube Player
+const iceConfig = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
+  ]
+};
+
+socket.on('connect', () => { mySocketId = socket.id; });
+
+// YouTube API
 const tag = document.createElement('script');
 tag.src = "https://www.youtube.com/iframe_api";
 document.head.appendChild(tag);
-
 function onYouTubeIframeAPIReady() {}
+
+function toggleUrlBar() {
+  urlBarVisible = !urlBarVisible;
+  document.getElementById('url-bar').style.display = urlBarVisible ? 'flex' : 'none';
+}
 
 function loadVideo() {
   const url = document.getElementById('youtube-url').value;
   const videoId = extractYouTubeId(url);
   if (!videoId) return alert('Sahi YouTube link dalo!');
+  document.getElementById('screen-placeholder').style.display = 'none';
+  document.getElementById('screen-video').style.display = 'none';
+  document.getElementById('remote-screen-video').style.display = 'none';
   if (player) {
     player.loadVideoById(videoId);
   } else {
     player = new YT.Player('player', {
       videoId: videoId,
+      width: '100%',
+      height: '100%',
       playerVars: { autoplay: 1, controls: 1 },
-      events: {
-        onStateChange: onPlayerStateChange
-      }
+      events: { onStateChange: onPlayerStateChange }
     });
   }
   socket.emit('video-sync', roomId, { action: 'load', videoId, time: 0 });
@@ -133,7 +179,7 @@ function extractYouTubeId(url) {
 }
 
 function onPlayerStateChange(event) {
-  if (!player) return;
+  if (!player || isSyncing) return;
   const time = player.getCurrentTime();
   if (event.data === YT.PlayerState.PLAYING) {
     socket.emit('video-sync', roomId, { action: 'play', time });
@@ -142,16 +188,11 @@ function onPlayerStateChange(event) {
   }
 }
 
-function syncVideo() {
-  if (!player) return;
-  const time = player.getCurrentTime();
-  socket.emit('video-sync', roomId, { action: 'sync', time });
-  alert('Sync ho gaya! ✅');
-}
-
 socket.on('video-sync', (data) => {
   if (!player) return;
+  isSyncing = true;
   if (data.action === 'load') {
+    document.getElementById('screen-placeholder').style.display = 'none';
     player.loadVideoById(data.videoId);
   } else if (data.action === 'play') {
     player.seekTo(data.time, true);
@@ -162,9 +203,124 @@ socket.on('video-sync', (data) => {
   } else if (data.action === 'sync') {
     player.seekTo(data.time, true);
   }
+  setTimeout(() => { isSyncing = false; }, 1000);
 });
 
-// Room functions
+// Screen Share (WebRTC)
+async function startScreenShare() {
+  try {
+    if (screenStream) {
+      stopScreenShare();
+      return;
+    }
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 15 },
+      audio: true
+    });
+
+    const localVideo = document.getElementById('screen-video');
+    localVideo.srcObject = screenStream;
+    localVideo.style.display = 'block';
+    document.getElementById('screen-placeholder').style.display = 'none';
+    document.getElementById('btn-screen').textContent = '🖥️ Share Band Karo';
+    document.getElementById('btn-screen').style.background = '#f44336';
+
+    socket.emit('screen-share-started', roomId);
+
+    // Create peer connection
+    peerConnection = new RTCPeerConnection(iceConfig);
+    screenStream.getTracks().forEach(track => {
+      peerConnection.addTrack(track, screenStream);
+    });
+
+    if (micStream) {
+      micStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, micStream);
+      });
+    }
+
+    peerConnection.onicecandidate = (e) => {
+      if (e.candidate) {
+        socket.emit('webrtc-ice', roomId, e.candidate);
+      }
+    };
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.emit('webrtc-offer', roomId, offer);
+
+    screenStream.getVideoTracks()[0].onended = stopScreenShare;
+    addMessage('System', '🖥️ Screen share shuru! Dost ko dikha raha hai!');
+
+  } catch(e) {
+    addMessage('System', '❌ Screen share nahi hua — permission do ya browser support check karo!');
+  }
+}
+
+function stopScreenShare() {
+  if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+  screenStream = null;
+  if (peerConnection) { peerConnection.close(); peerConnection = null; }
+  document.getElementById('screen-video').style.display = 'none';
+  document.getElementById('screen-placeholder').style.display = 'flex';
+  document.getElementById('btn-screen').textContent = '🖥️ Screen Share';
+  document.getElementById('btn-screen').style.background = '#9c27b0';
+  socket.emit('screen-share-stopped', roomId);
+  addMessage('System', '🖥️ Screen share band ho gaya!');
+}
+
+// WebRTC Signaling
+socket.on('webrtc-offer', async (fromId, offer) => {
+  peerConnection = new RTCPeerConnection(iceConfig);
+
+  peerConnection.ontrack = (e) => {
+    const remoteVideo = document.getElementById('remote-screen-video');
+    remoteVideo.srcObject = e.streams[0];
+    remoteVideo.style.display = 'block';
+    document.getElementById('screen-placeholder').style.display = 'none';
+    document.getElementById('screen-video').style.display = 'none';
+  };
+
+  peerConnection.onicecandidate = (e) => {
+    if (e.candidate) {
+      socket.emit('webrtc-ice', fromId, e.candidate);
+    }
+  };
+
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+  socket.emit('webrtc-answer', fromId, answer);
+});
+
+socket.on('webrtc-answer', async (fromId, answer) => {
+  if (peerConnection) {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+  }
+});
+
+socket.on('webrtc-ice', async (fromId, candidate) => {
+  if (peerConnection) {
+    try { await peerConnection.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e) {}
+  }
+});
+
+socket.on('screen-share-started', (fromId, fromUsername) => {
+  addMessage('System', '🖥️ ' + fromUsername + ' screen share kar raha hai!');
+});
+
+socket.on('screen-share-stopped', () => {
+  document.getElementById('remote-screen-video').style.display = 'none';
+  document.getElementById('screen-placeholder').style.display = 'flex';
+  addMessage('System', '🖥️ Screen share band ho gaya!');
+});
+
+socket.on('peer-disconnected', () => {
+  if (peerConnection) { peerConnection.close(); peerConnection = null; }
+  document.getElementById('remote-screen-video').style.display = 'none';
+});
+
+// Room
 function createRoom() {
   username = document.getElementById('username-input').value.trim();
   if (!username) return alert('Pehle apna naam likho!');
@@ -183,7 +339,7 @@ function joinRoom() {
 
 function enterParty() {
   document.getElementById('home-screen').style.display = 'none';
-  document.getElementById('party-screen').style.display = 'block';
+  document.getElementById('party-screen').style.display = 'flex';
   document.getElementById('room-id-display').textContent = 'Room: ' + roomId;
   socket.emit('join-room', roomId, username);
 }
@@ -201,15 +357,16 @@ function sendMessage() {
   document.getElementById('msg-input').value = '';
 }
 
-socket.on('chat-message', (user, msg) => {
+function addMessage(user, msg) {
   const div = document.createElement('div');
   div.innerHTML = `<span>${user}:</span> ${msg}`;
   const messages = document.getElementById('messages');
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
-});
+}
 
-// Users
+socket.on('chat-message', (user, msg) => addMessage(user, msg));
+
 socket.on('user-joined', (user, users) => {
   const list = document.getElementById('users-list');
   list.innerHTML = '';
@@ -218,16 +375,23 @@ socket.on('user-joined', (user, users) => {
     li.textContent = u;
     list.appendChild(li);
   });
-  if (user !== username) {
-    const div = document.createElement('div');
-    div.innerHTML = `<span>System:</span> ${user} join ho gaya! 🎉`;
-    document.getElementById('messages').appendChild(div);
-  }
+  if (user !== username) addMessage('System', user + ' join ho gaya! 🎉');
 });
 
-// Mic / Voice Chat (WebRTC)
+socket.on('user-left', (user, users) => {
+  const list = document.getElementById('users-list');
+  list.innerHTML = '';
+  users.forEach(u => {
+    const li = document.createElement('li');
+    li.textContent = u;
+    list.appendChild(li);
+  });
+  addMessage('System', user + ' chala gaya! 👋');
+});
+
+// Mic
 async function toggleMic() {
-  const btn = document.getElementById('mic-btn');
+  const btn = document.getElementById('btn-mic');
   if (!isMicOn) {
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -239,6 +403,7 @@ async function toggleMic() {
     }
   } else {
     if (micStream) micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
     isMicOn = false;
     btn.textContent = '🎙️ Mic ON';
     btn.classList.remove('active');
