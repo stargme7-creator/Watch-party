@@ -22,11 +22,11 @@ const pool = new Pool({
   ssl: false
 });
 
-pool.query(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(50) UNIQUE NOT NULL, email VARCHAR(100) UNIQUE NOT NULL, password VARCHAR(200) NOT NULL, is_verified BOOLEAN DEFAULT TRUE, is_premium BOOLEAN DEFAULT FALSE, avatar TEXT DEFAULT 'movie', bio TEXT DEFAULT '', otp VARCHAR(6), otp_expires TIMESTAMP, last_room_time TIMESTAMP, created_at TIMESTAMP DEFAULT NOW())`).then(() => console.log('Users table ready!')).catch(err => console.log('Users error:', err.message));
+pool.query(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(50) UNIQUE NOT NULL, email VARCHAR(100) UNIQUE NOT NULL, password VARCHAR(200) NOT NULL, is_verified BOOLEAN DEFAULT TRUE, is_premium BOOLEAN DEFAULT FALSE, avatar TEXT DEFAULT 'movie', bio TEXT DEFAULT '', otp VARCHAR(6), otp_expires TIMESTAMP, last_room_time TIMESTAMP, created_at TIMESTAMP DEFAULT NOW())`).then(() => console.log('Users ready!')).catch(err => console.log('Error:', err.message));
 
-pool.query(`CREATE TABLE IF NOT EXISTS room_history (id SERIAL PRIMARY KEY, user_email VARCHAR(100), room_id VARCHAR(20), created_at TIMESTAMP DEFAULT NOW())`).then(() => console.log('History table ready!')).catch(err => console.log('History error:', err.message));
+pool.query(`CREATE TABLE IF NOT EXISTS room_history (id SERIAL PRIMARY KEY, user_email VARCHAR(100), room_id VARCHAR(20), created_at TIMESTAMP DEFAULT NOW())`).then(() => console.log('History ready!')).catch(err => console.log('Error:', err.message));
 
-pool.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, user_email VARCHAR(100), subject VARCHAR(200), message TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT NOW())`).then(() => console.log('Support table ready!')).catch(err => console.log('Support error:', err.message));
+pool.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, user_email VARCHAR(100), subject VARCHAR(200), message TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT NOW())`).then(() => console.log('Support ready!')).catch(err => console.log('Error:', err.message));
 
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
@@ -63,7 +63,7 @@ app.post('/api/forgot-password', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await pool.query('UPDATE users SET otp = $1, otp_expires = $2 WHERE email = $3', [otp, otpExpires, email]);
-    res.json({ success: true, message: 'OTP: ' + otp + ' (Abhi email band hai, yeh OTP use karo)' });
+    res.json({ success: true, message: 'OTP: ' + otp + ' (Yeh OTP use karo password reset karne ke liye)' });
   } catch (err) {
     res.json({ success: false, message: 'Error aaya!' });
   }
@@ -163,8 +163,8 @@ app.post('/api/check-limit', async (req, res) => {
     if (user.is_premium) return res.json({ allowed: true });
     if (!user.last_room_time) return res.json({ allowed: true });
     const diffHours = (new Date() - new Date(user.last_room_time)) / (1000 * 60 * 60);
-    if (diffHours >= 3) return res.json({ allowed: true });
-    res.json({ allowed: false, waitMinutes: Math.ceil((3 - diffHours) * 60) });
+    if (diffHours >= 8) return res.json({ allowed: true });
+    res.json({ allowed: false, waitMinutes: Math.ceil((8 - diffHours) * 60) });
   } catch (err) {
     res.json({ allowed: true });
   }
