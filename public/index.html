@@ -146,8 +146,8 @@
     <script>
         let socket;
         let ytPlayer = null; 
-        let activePlayerType = null; // 'youtube' or 'raw'
-        let ignoreSyncEvents = false; // Infinite network broadcast loops lock flag
+        let activePlayerType = null; 
+        let ignoreSyncEvents = false; 
         const peers = {}; 
         
         const state = {
@@ -246,7 +246,6 @@
             document.body.className = "p-4"; 
             document.getElementById('room-display-id').innerText = state.roomId;
 
-            // BUG FIX: Agar koi purana stale ya ghost socket socket pool me hai, use safe disconnect karo pehle
             if (socket) { socket.disconnect(); }
 
             socket = io();
@@ -255,7 +254,6 @@
             setupSocketListeners();
         }
 
-        // BUG FIX: Room se left lekar lobby me wapas aane ka proper cleanup structure
         function leavePartyRoom() {
             if(socket) {
                 socket.emit('leave-room', state.roomId);
@@ -276,9 +274,6 @@
             showLobbyView();
         }
 
-        // ===================================================
-        // WebRTC AUDIO SYSTEM + ANDROID AUTO-PLAY BYPASS 
-        // ===================================================
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
             if (!state.micActive) {
@@ -291,7 +286,7 @@
                     state.localStream.getAudioTracks().forEach(track => {
                         Object.values(peers).forEach(pc => { pc.addTrack(track, state.localStream); });
                     });
-                } catch (err) { alert("Mic open nahi ho saka! Permissions verify karein."); }
+                } catch (err) { alert("Mic open nahi ho saka!"); }
             } else {
                 if (state.localStream) state.localStream.getTracks().forEach(t => t.stop());
                 state.micActive = false;
@@ -310,22 +305,18 @@
             }
             pc.onicecandidate = (event) => { if (event.candidate) socket.emit('webrtc-ice', targetUserId, event.candidate); };
             
-            // ANDROID BYPASS: Remote audio track receive hone par bypass attributes apply karo
             pc.ontrack = (event) => {
                 let audioEl = document.getElementById(`audio-${targetUserId}`);
                 if (!audioEl) {
                     audioEl = document.createElement('audio'); 
                     audioEl.id = `audio-${targetUserId}`;
                     audioEl.autoplay = true; 
-                    audioEl.setAttribute('playsinline', 'true'); // Mobile web fix
+                    audioEl.setAttribute('playsinline', 'true'); 
                     document.getElementById('remote-audios').appendChild(audioEl);
                 }
                 audioEl.srcObject = event.streams[0];
                 
-                // Android User Gesture bypass hack trigger loop
                 audioEl.play().catch(() => {
-                    console.log("Android audio muted mode locked. Waiting for a screen tap...");
-                    // Screen tap hote hi force-play kardo
                     document.body.addEventListener('click', () => { audioEl.play(); }, { once: true });
                 });
             };
@@ -338,9 +329,6 @@
             return pc;
         }
 
-        // ===================================================
-        // VIDEO PLAYER MULTI ENGINE (PARSING & LIVE DETECT)
-        // ===================================================
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
@@ -370,7 +358,6 @@
                 activePlayerType = 'youtube';
                 container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
                 
-                // YouTube Iframe instance inject logic
                 ytPlayer = new YT.Player('yt-iframe-placeholder', {
                     videoId: meta.id,
                     playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'controls': 1, 'rel': 0 },
@@ -384,7 +371,6 @@
             setTimeout(() => showOverlay(false), 800);
         }
 
-        // BUG FIX: YouTube live events (Play / Pause tracking) listener
         function onYouTubePlayerStateChange(event) {
             if (ignoreSyncEvents || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return; 
             const currentTime = ytPlayer.getCurrentTime();
@@ -396,7 +382,6 @@
             }
         }
 
-        // BUG FIX: HTML5 normal elements events tracker
         function setupRawVideoListeners() {
             const videoEl = document.getElementById('raw-video-element');
             if(!videoEl) return;
@@ -430,9 +415,6 @@
 
         function sendReaction(emoji) { socket.emit('reaction', state.roomId, emoji); }
 
-        // ===================================================
-        // CHANNELS CORE SUBSCRIPTION EVENT MESSAGES CAPTURER
-        // ===================================================
         function setupSocketListeners() {
             socket.on('receive-chat', ({ user, msg }) => {
                 const box = document.getElementById('messages');
@@ -442,23 +424,17 @@
                 box.appendChild(item); box.scrollTop = box.scrollHeight;
             });
 
-            // BUG FIX: Incoming sync signal packets capture loop execution matrix
             socket.on('video-sync', (data) => {
                 if (!data) return;
-
-                // Naya link payload handle karne ke liye
                 if (data.action === 'loadNewVideo' && data.meta) {
                     showOverlay(true); renderActivePlayer(data.meta); return;
                 }
 
-                // Loop lock bypass handler flag activated
                 ignoreSyncEvents = true;
 
                 if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
                     const localTime = ytPlayer.getCurrentTime();
-                    // Agar dono players ke samay me 1.5 seconds se zyada ka farq hai toh jump (seek) karo
                     if (Math.abs(localTime - data.time) > 1.5) { ytPlayer.seekTo(data.time, true); }
-                    
                     if (data.action === 'play') { ytPlayer.playVideo(); }
                     else if (data.action === 'pause') { ytPlayer.pauseVideo(); }
                 } 
@@ -471,11 +447,9 @@
                     }
                 }
 
-                // Unlock monitoring loop context stream pipeline
                 setTimeout(() => { ignoreSyncEvents = false; }, 400);
             });
 
-            // WebRTC loop architecture signaling nodes
             socket.on('new-peer', (targetUserId) => { initPeerConnection(targetUserId, true); });
             socket.on('webrtc-offer', (fromId, offer) => {
                 const pc = initPeerConnection(fromId, false);
@@ -506,12 +480,10 @@
                         </div>`;
                 });
             }
-            socket.on('user-joined', (u, roomUsers) => { updateOnlineUsersList(roomUsers); });
-            socket.on('user-left', (u, roomUsers) => { updateOnlineUsersList(roomUsers); });
             socket.on('room-users-update', (data) => { if(data && data.users) updateOnlineUsersList(data.users); });
         }
 
         window.addEventListener('DOMContentLoaded', () => { if (state.token && state.username) showLobbyView(); });
     </script>
 </body>
-            </html>
+    </html>
