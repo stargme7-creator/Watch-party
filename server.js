@@ -1,4 +1,4 @@
- const express = require('express');
+const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
@@ -182,29 +182,53 @@ app.post('/api/update-room-time', async (req, res) => {
 
 const rooms = {};
 
+// ==========================================
+// SOCKET.IO REAL-TIME ROUTING ENGINE WITH MIC
+// ==========================================
 io.on('connection', (socket) => {
-  socket.on('join-room', (roomId, username) => {
+  
+  // 1. Join Room Logic (Frontend Objects aur Multi-args dono support karega)
+  socket.on('join-room', (data, fallbackArg) => {
+    let roomId, username;
+    if (data && typeof data === 'object') {
+      roomId = data.roomId;
+      username = data.username;
+    } else {
+      roomId = data;
+      username = fallbackArg;
+    }
+
+    if (!roomId || !username) return;
+
     socket.join(roomId);
     socket.username = username;
     socket.roomId = roomId;
+
     if (!rooms[roomId]) rooms[roomId] = [];
     if (!rooms[roomId].includes(username)) rooms[roomId].push(username);
+
+    // Dono frontends ke UI states ko update bhejte hain
     io.to(roomId).emit('user-joined', username, rooms[roomId]);
+    io.to(roomId).emit('room-users-update', { users: rooms[roomId] });
+    
+    // WebRTC connection triggers for Live Mic Signaling
+    socket.to(roomId).emit('user-joined-room', { userId: socket.id, username: username });
     socket.to(roomId).emit('new-peer', socket.id, username);
   });
 
-  socket.on('chat-message', (roomId, username, message) => {
-    io.to(roomId).emit('chat-message', username, message);
+  // 2. WebRTC Multi-User Audio/Mic Signaling Bridge
+  socket.on('webrtc-signal', ({ to, signal }) => {
+    io.to(to).emit('webrtc-signal', {
+      from: socket.id,
+      signal: signal
+    });
   });
 
-  socket.on('video-sync', (roomId, data) => {
-    socket.to(roomId).emit('video-sync', data);
+  socket.on('mic-status-change', ({ roomId, micActive }) => {
+    socket.to(roomId).emit('user-mic-updated', { userId: socket.id, micActive });
   });
 
-  socket.on('reaction', (roomId, emoji) => {
-    io.to(roomId).emit('reaction', socket.username, emoji);
-  });
-
+  // 3. Fallback WebRTC Default Connection Methods
   socket.on('webrtc-offer', (targetId, offer) => {
     io.to(targetId).emit('webrtc-offer', socket.id, offer);
   });
@@ -217,6 +241,28 @@ io.on('connection', (socket) => {
     io.to(targetId).emit('webrtc-ice', socket.id, candidate);
   });
 
+  // 4. Chat aur Synchronization Events
+  socket.on('chat-message', (roomId, username, message) => {
+    // Handling object fallback pattern from new client script
+    if (roomId && typeof roomId === 'object' && roomId.roomId) {
+      const payload = roomId;
+      io.to(payload.roomId).emit('receive-chat', { user: payload.user || payload.username, msg: payload.msg });
+      io.to(payload.roomId).emit('chat-message', payload.user || payload.username, payload.msg);
+    } else {
+      io.to(roomId).emit('chat-message', username, message);
+      io.to(roomId).emit('receive-chat', { user: username, msg: message });
+    }
+  });
+
+  socket.on('video-sync', (roomId, data) => {
+    socket.to(roomId).emit('video-sync', data);
+  });
+
+  socket.on('reaction', (roomId, emoji) => {
+    io.to(roomId).emit('reaction', socket.username, emoji);
+  });
+
+  // 5. Screen Share Functionality
   socket.on('screen-share-started', (roomId) => {
     socket.to(roomId).emit('screen-share-started', socket.id, socket.username);
   });
@@ -237,12 +283,28 @@ io.on('connection', (socket) => {
     io.to(targetId).emit('screen-share-rejected');
   });
 
+  // 6. Leave/Disconnect Engine
+  socket.on('leave-room', (data) => {
+    const roomId = (data && data.roomId) ? data.roomId : socket.roomId;
+    const username = socket.username;
+    if (roomId && rooms[roomId]) {
+      rooms[roomId] = rooms[roomId].filter(u => u !== username);
+      io.to(roomId).emit('user-left', username, rooms[roomId]);
+      io.to(roomId).emit('room-users-update', { users: rooms[roomId] });
+      socket.to(roomId).emit('user-left-room', { userId: socket.id });
+      socket.to(roomId).emit('peer-disconnected', socket.id);
+    }
+    socket.leave(roomId);
+  });
+
   socket.on('disconnect', () => {
     const roomId = socket.roomId;
     const username = socket.username;
     if (roomId && rooms[roomId]) {
       rooms[roomId] = rooms[roomId].filter(u => u !== username);
       io.to(roomId).emit('user-left', username, rooms[roomId]);
+      io.to(roomId).emit('room-users-update', { users: rooms[roomId] });
+      socket.to(roomId).emit('user-left-room', { userId: socket.id });
       socket.to(roomId).emit('peer-disconnected', socket.id);
     }
   });
