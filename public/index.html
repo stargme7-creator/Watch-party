@@ -1,752 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WatchParty India - Saath Dekho</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--primary:#e91e8c;--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a2e;--bg4:#22223b;--text:#ffffff;--text2:#aaaaaa;--gold:#ffd700;--success:#4caf50;--error:#f44336;--blue:#2196f3}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;min-height:100vh}
-body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111;--text2:#555}
-::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-thumb{background:var(--primary);border-radius:3px}
-#auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0a0a0f,#1a0a1e)}
-.auth-title{font-size:2.5em;font-weight:900;background:linear-gradient(90deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:5px;text-align:center}
-.auth-subtitle{color:var(--text2);margin-bottom:30px;font-size:1em;text-align:center}
-.auth-box{background:var(--bg2);border:1px solid #2a2a3e;border-radius:20px;padding:35px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(233,30,140,0.15)}
-.auth-tabs{display:flex;background:var(--bg3);border-radius:12px;padding:4px;margin-bottom:25px}
-.auth-tab{flex:1;padding:10px;border:none;border-radius:10px;cursor:pointer;font-size:0.95em;font-weight:600;background:transparent;color:var(--text2);transition:all 0.3s}
-.auth-tab.active{background:var(--primary);color:#fff}
-.form-group{margin-bottom:15px}
-.form-label{display:block;color:var(--text2);font-size:0.85em;margin-bottom:6px}
-.form-input{width:100%;padding:13px 15px;border-radius:10px;border:2px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.95em;outline:none;transition:border 0.3s}
-.form-input:focus{border-color:var(--primary)}
-.auth-btn{width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--primary),#9c27b0);color:#fff;font-size:1em;font-weight:700;cursor:pointer;margin-top:5px}
-.auth-link{color:var(--primary);cursor:pointer;font-size:0.85em;text-align:center;margin-top:12px;display:block}
-.msg-error{color:var(--error);font-size:0.85em;margin-bottom:10px;padding:10px;background:rgba(244,67,54,0.1);border-radius:8px;display:none}
-.msg-success{color:var(--success);font-size:0.85em;margin-bottom:10px;padding:10px;background:rgba(76,175,80,0.1);border-radius:8px;display:none}
-#home-screen{display:none;min-height:100vh;background:var(--bg)}
-.home-header{background:var(--bg2);border-bottom:1px solid var(--bg4);padding:15px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.home-logo{font-size:1.5em;font-weight:900;background:linear-gradient(90deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;cursor:pointer}
-.icon-btn{background:var(--bg3);border:none;color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:0.9em}
-.icon-btn:hover{background:var(--primary);color:#fff}
-.home-content{max-width:600px;margin:0 auto;padding:20px}
-.welcome-card{background:linear-gradient(135deg,var(--primary),#9c27b0);border-radius:20px;padding:20px;margin-bottom:20px;display:flex;align-items:center;gap:15px}
-.user-avatar{font-size:2.5em;background:rgba(255,255,255,0.2);border-radius:50%;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
-.premium-badge{background:var(--gold);color:#000;padding:3px 10px;border-radius:20px;font-size:0.75em;font-weight:700;margin-top:5px;display:inline-block}
-.free-badge{background:var(--bg4);color:var(--text2);padding:3px 10px;border-radius:20px;font-size:0.75em;font-weight:700;margin-top:5px;display:inline-block}
-.home-tabs{display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:5px}
-.tab-content{display:none;padding-bottom:70px}
-.tab-content.active{display:block}
-.room-card{background:var(--bg2);border:1px solid var(--bg4);border-radius:15px;padding:20px;margin-bottom:15px}
-.create-room-btn{width:100%;padding:15px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--primary),#9c27b0);color:#fff;font-size:1em;font-weight:700;cursor:pointer;margin-bottom:15px}
-.join-row{display:flex;gap:10px}
-.join-input{flex:1;padding:13px;border-radius:10px;border:2px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.95em;outline:none}
-.join-input:focus{border-color:var(--primary)}
-.join-btn{padding:13px 20px;border-radius:10px;border:none;background:var(--primary);color:#fff;cursor:pointer;font-weight:600}
-.history-item{background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
-.history-room-id{font-weight:600;color:var(--primary)}
-.history-time{color:var(--text2);font-size:0.8em}
-.rejoin-btn{background:var(--primary);color:#fff;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:0.8em}
-.card{background:var(--bg2);border:1px solid var(--bg4);border-radius:15px;padding:20px;margin-bottom:15px}
-.card h3{color:var(--primary);margin-bottom:15px}
-.upgrade-card{background:linear-gradient(135deg,#1a0a1e,#0a1a2e);border:1px solid var(--gold);border-radius:15px;padding:20px;margin-bottom:15px;text-align:center}
-.upgrade-card h3{color:var(--gold)}
-.profile-avatar-big{font-size:4em;text-align:center;cursor:pointer;margin-bottom:10px}
-.avatar-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:15px 0}
-.avatar-option{font-size:1.8em;cursor:pointer;padding:6px;border-radius:8px;text-align:center}
-.avatar-option:hover,.avatar-option.selected{background:var(--primary)}
-.bio-input{width:100%;padding:12px;border-radius:10px;border:2px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.9em;outline:none;resize:vertical;min-height:80px}
-.save-btn{background:var(--primary);color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:600;width:100%;margin-top:10px}
-.coupon-row{display:flex;gap:10px;margin-top:10px}
-.coupon-input{flex:1;padding:12px;border-radius:10px;border:2px solid var(--gold);background:var(--bg3);color:var(--text);font-size:0.9em;outline:none}
-.coupon-btn{background:var(--gold);color:#000;border:none;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:700}
-#party-screen{display:none;flex-direction:column;height:100vh;background:var(--bg)}
-.party-header{background:var(--bg2);border-bottom:1px solid var(--bg4);padding:10px 15px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
-.party-logo{font-size:1.1em;font-weight:900;background:linear-gradient(90deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.party-btns{display:flex;gap:6px;flex-wrap:wrap}
-.party-btn{padding:7px 11px;font-size:0.78em;border-radius:8px;border:none;color:#fff;cursor:pointer;font-weight:600}
-.btn-yt{background:#ff0000}
-.btn-screen{background:#9c27b0}
-.btn-mic{background:var(--blue)}
-.btn-mic.active{background:var(--error)}
-.btn-copy{background:var(--success)}
-.btn-leave{background:var(--bg4);color:var(--text)}
-.party-main{display:flex;gap:10px;padding:10px;flex:1;overflow:hidden}
-.video-section{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
-.url-bar{display:none;gap:8px}
-.url-input{flex:1;padding:10px;border-radius:8px;border:2px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.9em;outline:none}
-.url-go{padding:10px 15px;border-radius:8px;border:none;background:#ff0000;color:#fff;cursor:pointer}
-.player-wrap{flex:1;background:#000;border-radius:12px;overflow:hidden;position:relative;min-height:200px}
-#player{width:100%;height:100%}
-#screen-video,#remote-screen-video{width:100%;height:100%;object-fit:contain;display:none;position:absolute;top:0;left:0}
-.player-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#444;text-align:center;padding:20px;gap:8px}
-.reactions-bar{display:flex;gap:8px;flex-wrap:wrap}
-.reaction-btn{background:var(--bg3);border:1px solid var(--bg4);padding:8px 12px;border-radius:20px;cursor:pointer;font-size:1.1em}
-.reaction-btn:hover{transform:scale(1.3)}
-.floating-reaction{position:fixed;font-size:2em;animation:floatUp 2s ease-out forwards;pointer-events:none;z-index:999}
-@keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-200px)}}
-.side-panel{width:270px;display:flex;flex-direction:column;gap:8px;overflow:hidden}
-.panel-box{background:var(--bg2);border-radius:12px;padding:12px;border:1px solid var(--bg4)}
-.panel-title{color:var(--primary);font-size:0.85em;font-weight:700;margin-bottom:8px}
-#users-list{list-style:none}
-#users-list li{padding:4px 0;color:var(--text2);font-size:0.85em}
-.chat-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
-#messages{flex:1;overflow-y:auto;margin-bottom:8px;max-height:280px}
-.msg-item{padding:5px 0;border-bottom:1px solid var(--bg4);font-size:0.82em;color:var(--text2)}
-.msg-user{color:var(--primary);font-weight:700}
-.msg-system{color:#666;font-style:italic}
-.chat-row{display:flex;gap:6px}
-.chat-input{flex:1;padding:9px 12px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.85em;outline:none}
-.chat-send{padding:9px 13px;border-radius:8px;border:none;background:var(--primary);color:#fff;cursor:pointer}
-.timer-bar{background:var(--bg3);border-radius:8px;padding:8px 12px;font-size:0.8em;color:var(--text2);text-align:center}
-.timer-premium{color:var(--gold);font-weight:600}
-.share-request{background:var(--bg2);border:2px solid var(--primary);border-radius:15px;padding:15px;margin-bottom:10px;text-align:center;display:none}
-.share-req-btns{display:flex;gap:10px;margin-top:10px;justify-content:center}
-.approve-btn{background:var(--success);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer}
-.reject-btn{background:var(--error);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer}
-.modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;padding:20px}
-.modal.show{display:flex}
-.modal-box{background:var(--bg2);border-radius:20px;padding:30px;width:100%;max-width:400px}
-.modal-title{font-size:1.2em;font-weight:700;margin-bottom:20px;color:var(--primary)}
-.modal-btn{width:100%;padding:13px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:1em;font-weight:700;cursor:pointer;margin-top:8px}
-.notif{position:fixed;top:20px;right:20px;background:var(--bg2);border:1px solid var(--primary);border-radius:12px;padding:15px 20px;z-index:9999;animation:slideIn 0.3s ease;max-width:280px}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-@media(max-width:768px){.party-main{flex-direction:column}.side-panel{width:100%}#messages{max-height:180px}}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WatchParty</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { background-color: #0d0e15; color: #ffffff; font-family: sans-serif; }
+        .pink-glow { text-shadow: 0 0 10px #ff007f; }
+        .panel-bg { background-color: #141622; border: 1px solid #1f2335; }
+        #messages { height: 220px; overflow-y: auto; display: flex; flex-direction: column; }
+        .msg-item { margin-bottom: 6px; padding: 4px 8px; border-bottom: 1px solid #1f2335; }
+        .msg-user { color: #ff007f; font-weight: bold; }
+        iframe, video { width: 100%; height: 100%; border-radius: 8px; border: none; }
+    </style>
 </head>
-<body>
+<body class="p-4">
 
-<!-- Hidden Global Audio Container for WebRTC Stream Output -->
-<div id="remote-audio-container" style="display:none;"></div>
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-pink-500 pink-glow flex items-center gap-2">
+            <i class="fa-solid fa-clapperboard"></i> WatchParty
+        </h1>
+        <div class="text-sm text-gray-400">Room ID: <span id="room-display-id" class="text-white font-mono font-bold">---</span></div>
+    </div>
 
-<div id="auth-screen">
-  <div style="font-size:3em;text-align:center">🎬</div>
-  <div class="auth-title">WatchParty India</div>
-  <div class="auth-subtitle">Apne dosto ke saath movies aur dramas saath dekho!</div>
-  <div class="auth-box">
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
-      <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
-      <button class="auth-tab" onclick="switchAuthTab('forgot')">Forgot</button>
+    <div class="grid grid-cols-3 gap-2 mb-4">
+        <button class="bg-red-600 hover:bg-red-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
+            <i class="fa-brands fa-youtube"></i> YouTube
+        </button>
+        <button class="bg-purple-600 hover:bg-purple-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
+            <i class="fa-solid fa-desktop"></i> Share
+        </button>
+        <button id="mic-toggle-btn" onclick="toggleMicPipeline()" class="bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
+            <i class="fa-solid fa-microphone-slash"></i> Mic Off
+        </button>
     </div>
-    <div id="form-login">
-      <div class="msg-error" id="login-error"></div>
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input class="form-input" type="email" id="login-email" placeholder="Email daalo..." />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input class="form-input" type="password" id="login-password" placeholder="Password daalo..." />
-      </div>
-      <button class="auth-btn" onclick="login()">🔐 Login Karo</button>
+
+    <div class="flex gap-2 mb-4">
+        <input type="text" id="video-url-input" placeholder="YouTube, Vimeo, Twitch ya MP4 Video Link paste karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500">
+        <button onclick="playNewVideoFromInput()" class="bg-red-600 hover:bg-red-700 px-4 rounded text-white flex items-center justify-center">
+            <i class="fa-solid fa-play"></i>
+        </button>
     </div>
-    <div id="form-register" style="display:none">
-      <div class="msg-error" id="reg-error"></div>
-      <div class="msg-success" id="reg-success"></div>
-      <div class="form-group">
-        <label class="form-label">Username</label>
-        <input class="form-input" type="text" id="reg-username" placeholder="Username..." />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input class="form-input" type="email" id="reg-email" placeholder="Email..." />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input class="form-input" type="password" id="reg-password" placeholder="Password..." />
-      </div>
-      <button class="auth-btn" onclick="register()">✅ Register Karo</button>
-    </div>
-    <div id="form-otp" style="display:none">
-      <div class="msg-error" id="otp-error"></div>
-      <p style="color:var(--text2);margin-bottom:15px;font-size:0.9em">OTP bheja gaya! Email check karo!</p>
-      <div class="form-group">
-        <label class="form-label">OTP</label>
-        <input class="form-input" type="text" id="otp-input" placeholder="6 digit OTP..." maxlength="6" />
-      </div>
-      <button class="auth-btn" onclick="verifyOTP()">✅ Verify Karo</button>
-    </div>
-    <div id="form-forgot" style="display:none">
-      <div class="msg-error" id="forgot-error"></div>
-      <div class="msg-success" id="forgot-success"></div>
-      <div id="forgot-step1">
-        <div class="form-group">
-          <label class="form-label">Email</label>
-          <input class="form-input" type="email" id="forgot-email" placeholder="Email daalo..." />
+
+    <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden mb-4 panel-bg flex items-center justify-center">
+        <div id="processing-overlay" class="absolute top-2 right-2 bg-black/80 border border-pink-500 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 z-50 hidden">
+            <i class="fa-solid fa-tv animate-pulse text-pink-500"></i> Video Load Processing...
         </div>
-        <button class="auth-btn" onclick="forgotPassword()">📧 OTP Bhejo</button>
-      </div>
-      <div id="forgot-step2" style="display:none">
-        <div class="form-group">
-          <label class="form-label">OTP</label>
-          <input class="form-input" type="text" id="forgot-otp" placeholder="OTP..." />
+        <div id="player-container" class="w-full h-full">
+            <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
+                <i class="fa-solid fa-film text-4xl mb-2"></i>
+                <p class="font-semibold text-sm text-gray-300">YouTube ya Screen Share karo</p>
+                <p class="text-xs text-gray-500 mt-1">Screen share sirf PC Chrome pe</p>
+            </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Naya Password</label>
-          <input class="form-input" type="password" id="new-password" placeholder="Naya password..." />
+    </div>
+
+    <div class="flex justify-between bg-gray-900/50 p-2 rounded-lg mb-4 border border-gray-800">
+        <button onclick="sendReaction('❤️')" class="text-xl transform hover:scale-125 transition">❤️</button>
+        <button onclick="sendReaction('😂')" class="text-xl transform hover:scale-125 transition">😂</button>
+        <button onclick="sendReaction('😮')" class="text-xl transform hover:scale-125 transition">😮</button>
+        <button onclick="sendReaction('😢')" class="text-xl transform hover:scale-125 transition">😢</button>
+        <button onclick="sendReaction('👏')" class="text-xl transform hover:scale-125 transition">👏</button>
+        <button onclick="sendReaction('🔥')" class="text-xl transform hover:scale-125 transition">🔥</button>
+        <button onclick="sendReaction('💀')" class="text-xl transform hover:scale-125 transition">💀</button>
+    </div>
+
+    <div class="panel-bg p-3 rounded-lg mb-4">
+        <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-users text-xs"></i> Online Users
+        </h3>
+        <div id="user-list" class="space-y-1 text-sm font-medium text-gray-300"></div>
+    </div>
+
+    <div class="panel-bg p-3 rounded-lg flex flex-col justify-between">
+        <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-comments text-xs"></i> Live Chat
+        </h3>
+        <div id="messages" class="mb-2"></div>
+        <div class="flex gap-2 border-t border-gray-800 pt-2">
+            <input type="text" id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="Kuch likho..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-pink-500">
+            <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 px-4 rounded text-xs font-bold text-white uppercase">Send</button>
         </div>
-        <button class="auth-btn" onclick="resetPassword()">🔐 Reset Karo</button>
-      </div>
-      <span class="auth-link" onclick="switchAuthTab('login')">← Login pe wapas jao</span>
     </div>
-  </div>
-</div>
 
-<div id="home-screen">
-  <div class="home-header">
-    <div class="home-logo" id="home-logo-btn">🎬 WatchParty</div>
-    <div style="display:flex;gap:8px">
-      <button class="icon-btn" onclick="toggleTheme()">🌙</button>
-      <button class="icon-btn" onclick="logout()">🚪 Logout</button>
-    </div>
-  </div>
-  <div class="home-content">
-    <div class="welcome-card">
-      <div class="user-avatar" id="home-avatar">🎬</div>
-      <div>
-        <div style="font-size:1.2em;font-weight:700" id="home-username">User</div>
-        <div style="opacity:0.85;font-size:0.9em" id="home-email">email</div>
-        <span id="home-badge" class="free-badge">FREE</span>
-      </div>
-    </div>
-    <div class="home-tabs">
-      <button class="icon-btn" onclick="showHomeTab('room')">🏠 Room</button>
-      <button class="icon-btn" onclick="showHomeTab('profile')">👤 Profile</button>
-      <button class="icon-btn" onclick="showHomeTab('history')">📜 History</button>
-      <button class="icon-btn" onclick="showHomeTab('premium')">👑 Premium</button>
-      <button class="icon-btn" onclick="showHomeTab('support')">🎧 Support</button>
-    </div>
-    <div id="home-tab-room" class="tab-content active">
-      <div class="room-card">
-        <button class="create-room-btn" onclick="createRoom()">🏠 Naya Room Banao</button>
-        <div class="join-row">
-          <input class="join-input" type="text" id="join-room-input" placeholder="Room ID daalo..." />
-          <button class="join-btn" onclick="joinRoom()">🔗 Join</button>
-        </div>
-      </div>
-    </div>
-    <div id="home-tab-profile" class="tab-content">
-      <div class="card" style="text-align:center">
-        <div class="profile-avatar-big" id="profile-avatar-display" onclick="toggleAvatarPicker()">🎬</div>
-        <div id="avatar-picker" style="display:none">
-          <div class="avatar-grid" id="avatar-grid"></div>
-        </div>
-        <div style="font-size:1.2em;font-weight:700" id="profile-name-display">Username</div>
-        <div style="color:var(--text2);font-size:0.9em;margin-bottom:15px" id="profile-email-display">email</div>
-        <div class="form-group" style="text-align:left">
-          <label class="form-label">Bio</label>
-          <textarea class="bio-input" id="bio-input" placeholder="Apne baare mein likho..."></textarea>
-        </div>
-        <button class="save-btn" onclick="saveProfile()">💾 Save Karo</button>
-      </div>
-    </div>
-    <div id="home-tab-history" class="tab-content">
-      <div class="card">
-        <h3>📜 Room History</h3>
-        <div id="history-list"><p style="color:var(--text2)">Koi history nahi!</p></div>
-      </div>
-    </div>
-    <div id="home-tab-premium" class="tab-content">
-      <div class="upgrade-card">
-        <h3>👑 Premium Bano!</h3>
-        <p style="color:var(--text2);font-size:0.9em;margin:10px 0">Unlimited watch time aur bahut kuch!</p>
-        <div style="text-align:left;color:var(--text2);font-size:0.9em;margin-bottom:15px">
-          ✅ 5 ghante room time (Free users)<br>
-          ✅ Premium — Unlimited time<br>
-          ✅ Ad-free experience<br>
-          ✅ Priority support
-        </div>
-      </div>
-      <div class="card">
-        <h3>🎫 Coupon Code</h3>
-        <p style="color:var(--text2);font-size:0.85em">Premium code daalo!</p>
-        <div class="coupon-row">
-          <input class="coupon-input" type="text" id="coupon-input" placeholder="COUPON CODE..." />
-          <button class="coupon-btn" onclick="applyCoupon()">Apply</button>
-        </div>
-        <div class="msg-error" id="coupon-error" style="margin-top:10px"></div>
-        <div class="msg-success" id="coupon-success" style="margin-top:10px"></div>
-      </div>
-    </div>
-    <div id="home-tab-support" class="tab-content">
-      <div class="card">
-        <h3>🎧 Customer Support</h3>
-        <div class="form-group">
-          <label class="form-label">Subject</label>
-          <input class="form-input" type="text" id="support-subject" placeholder="Problem kya hai?" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Message</label>
-          <textarea class="bio-input" id="support-message" placeholder="Detail mein likho..."></textarea>
-        </div>
-        <button class="save-btn" onclick="submitSupport()">📨 Submit Karo</button>
-        <div class="msg-error" id="support-error" style="margin-top:10px"></div>
-        <div class="msg-success" id="support-success" style="margin-top:10px"></div>
-      </div>
-      <div class="card">
-        <h3>❓ FAQ</h3>
-        <div style="color:var(--text2);font-size:0.9em">
-          <p style="margin-bottom:10px"><strong style="color:var(--text)">YouTube sync kaise kare?</strong><br>YouTube button dabao, link paste karo, Enter dabao!</p>
-          <p style="margin-bottom:10px"><strong style="color:var(--text)">Mic kaam nahi kar raha?</strong><br>Chrome browser use karo aur mic permission Allow karo!</p>
-          <p style="margin-bottom:10px"><strong style="color:var(--text)">Screen share kaise kare?</strong><br>Sirf PC/Laptop pe Chrome mein kaam karta hai!</p>
-          <p><strong style="color:var(--text)">Premium kaise milega?</strong><br>Coupon code use karo Premium tab mein!</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const state = {
+            roomId: urlParams.get('room') || 'ROOM_' + Math.floor(1000 + Math.random() * 9000),
+            username: urlParams.get('username') || 'User_' + Math.floor(Math.random() * 100),
+            micActive: false,
+            localStream: null
+        };
 
-<div id="party-screen">
-  <div class="party-header">
-    <div class="party-logo">🎬 WatchParty</div>
-    <span id="room-display" style="color:var(--text2);font-size:0.8em"></span>
-    <div class="party-btns">
-      <button class="party-btn btn-yt" onclick="toggleUrlBar()">📺 YouTube</button>
-      <button class="party-btn btn-screen" id="btn-screen" onclick="startScreenShare()">🖥️ Share</button>
-      <button class="party-btn btn-mic" id="btn-mic" onclick="toggleMic()">🎙️ Mic</button>
-      <button class="party-btn btn-copy" onclick="copyRoomId()">📋 ID</button>
-      <button class="party-btn btn-leave" onclick="leaveRoom()">🚪 Leave</button>
-    </div>
-  </div>
-  <div class="party-main">
-    <div class="video-section">
-      <div class="url-bar" id="url-bar">
-        <input class="url-input" type="text" id="youtube-url" placeholder="YouTube link paste karo..." onkeydown="if(event.key==='Enter')loadVideo()" />
-        <button class="url-go" onclick="loadVideo()">▶</button>
-      </div>
-      <div class="player-wrap">
-        <div class="player-placeholder" id="player-placeholder">
-          <span style="font-size:2em">🎬</span>
-          <span>YouTube ya Screen Share karo</span>
-          <p style="color:#555;font-size:0.85em">Screen share sirf PC Chrome pe</p>
-        </div>
-        <div id="player"></div>
-        <video id="screen-video" autoplay playsinline muted></video>
-        <video id="remote-screen-video" autoplay playsinline></video>
-      </div>
-      <div class="reactions-bar">
-        <button class="reaction-btn" onclick="sendReaction('❤️')">❤️</button>
-        <button class="reaction-btn" onclick="sendReaction('😂')">😂</button>
-        <button class="reaction-btn" onclick="sendReaction('😮')">😮</button>
-        <button class="reaction-btn" onclick="sendReaction('😢')">😢</button>
-        <button class="reaction-btn" onclick="sendReaction('👏')">👏</button>
-        <button class="reaction-btn" onclick="sendReaction('🔥')">🔥</button>
-        <button class="reaction-btn" onclick="sendReaction('💀')">💀</button>
-      </div>
-      <div class="timer-bar" id="timer-bar"></div>
-    </div>
-    <div class="side-panel">
-      <div class="share-request" id="share-request-box">
-        <p id="share-req-text" style="font-size:0.9em"></p>
-        <div class="share-req-btns">
-          <button class="approve-btn" onclick="approveScreenShare()">✅ Allow</button>
-          <button class="reject-btn" onclick="rejectScreenShare()">❌ Reject</button>
-        </div>
-      </div>
-      <div class="panel-box">
-        <div class="panel-title">👥 Online Users</div>
-        <ul id="users-list"></ul>
-      </div>
-      <div class="panel-box chat-panel">
-        <div class="panel-title">💬 Live Chat</div>
-        <div id="messages"></div>
-        <div class="chat-row">
-          <input class="chat-input" type="text" id="msg-input" placeholder="Message..." onkeydown="if(event.key==='Enter')sendMessage()" />
-          <button class="chat-send" onclick="sendMessage()">➤</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+        document.getElementById('room-display-id').innerText = state.roomId;
+        const socket = io();
+        socket.emit('join-room', { roomId: state.roomId, username: state.username });
 
-<div class="modal" id="admin-modal">
-  <div class="modal-box">
-    <div class="modal-title">📊 Admin Panel</div>
-    <div id="admin-stats" style="color:var(--text2);margin-bottom:15px;font-size:0.9em"></div>
-    <div class="form-group">
-      <label class="form-label">User Email</label>
-      <input class="form-input" type="email" id="admin-email" placeholder="User email..." />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Admin Key</label>
-      <input class="form-input" type="password" id="admin-key" placeholder="Admin key..." />
-    </div>
-    <button class="modal-btn" onclick="makePremium(true)">👑 Premium Banao</button>
-    <button class="modal-btn" style="background:var(--bg4);color:var(--text)" onclick="makePremium(false)">Remove Premium</button>
-    <button class="modal-btn" style="background:var(--bg4);color:var(--text)" onclick="closeModal('admin-modal')">Band Karo</button>
-  </div>
-</div>
+        // 1. Multi Platform Engine Converter
+        function parseVideoId(url) {
+            if (!url) return null;
+            url = url.trim();
+            if (url.match(/\.(mp4|webm|ogg|m3u8)($|\?)/i)) return { type: 'raw', id: url };
+            
+            const ytRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const ytMatch = url.match(ytRegex);
+            if (ytMatch && ytMatch[2].length === 11) return { type: 'youtube', id: ytMatch[2] };
 
-<!-- ========================================== -->
-<!-- PRIVACY POLICY SECTION (FOR INDUS APPSTORE) -->
-<!-- ========================================== -->
-<div id="privacy-policy-section" style="background: #111118; border-top: 1px solid #22223b; padding: 30px 20px; text-align: center; font-size: 0.85em; color: #aaaaaa; margin-top: 50px;">
-    <div style="max-width: 800px; margin: 0 auto; text-align: left;">
-        <h2 style="color: #e91e8c; margin-bottom: 15px; font-size: 1.5em;">Privacy Policy for WatchParty India</h2>
-        <p style="margin-bottom: 10px;">Effective Date: May 2026</p>
-        <p style="margin-bottom: 15px;">We care deeply about your privacy. This application is designed to provide a real-time synchronized video-watching experience with your friends.</p>
-        <ul style="list-style: none; padding: 0;">
-            <li style="margin-bottom: 10px;"><strong style="color: #ffd700;">1. Data Collection:</strong> We do NOT permanently store your private chat messages, shared video links, or real-time mic/audio streams on our servers. All room interactions are purely real-time.</li>
-            <li style="margin-bottom: 10px;"><strong style="color: #ffd700;">2. Account Information:</strong> When you login or register, we only use your email and username to authenticate you and display your profile inside the watch room.</li>
-            <li style="margin-bottom: 10px;"><strong style="color: #ffd700;">3. Third-Party Sharing:</strong> We do not sell, trade, or share any personal data with outside parties or third-party analytical networks.</li>
-        </ul>
-        <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.7;">© 2026 WatchParty India. All rights reserved.</p>
-    </div>
-</div>
+            const vimeoRegex = /(?:vimeo)\.com.*(?:plugins\/video\/|video\/|\/)([0-9]+)/;
+            const vimeoMatch = url.match(vimeoRegex);
+            if (vimeoMatch) return { type: 'vimeo', id: vimeoMatch[1] };
+            return null;
+        }
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io();
-let state = {
-  token: localStorage.getItem('wp_token'),
-  username: localStorage.getItem('wp_username'),
-  email: localStorage.getItem('wp_email'),
-  isPremium: localStorage.getItem('wp_premium') === 'true',
-  avatar: localStorage.getItem('wp_avatar') || '🎬',
-  roomId: '',
-  player: null,
-  micStream: null,
-  screenStream: null,
-  isMicOn: false,
-  isSyncing: false,
-  urlBarVisible: false,
-  peerConnections: {}, // Track WebRTC connections per user
-  pendingShareId: null,
-  isDark: true,
-  roomTimer: null,
-  pendingEmail: '',
-  iceServers: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-};
+        function playNewVideoFromInput() {
+            const urlInput = document.getElementById('video-url-input');
+            const mediaMeta = parseVideoId(urlInput.value);
+            if (mediaMeta) {
+                showOverlay(true);
+                socket.emit('video-sync', state.roomId, { action: 'loadNewVideo', meta: mediaMeta });
+                renderActivePlayer(mediaMeta);
+                urlInput.value = '';
+            } else {
+                alert("Link supported nahi hai bhai!");
+            }
+        }
 
-const AVATARS = ['🎬','🎭','🎪','🎨','🎯','🎲','🎮','🎵','🎸','🎹','🎺','🎻','🏆','🌟','🔥','💎','👑','🦁','🐯','🦊','🐺','🦋','🌈','⚡'];
+        function renderActivePlayer(meta) {
+            const container = document.getElementById('player-container');
+            if (meta.type === 'youtube') {
+                container.innerHTML = `<iframe src="https://www.youtube.com/embed/${meta.id}?enablejsapi=1&autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+            } else if (meta.type === 'vimeo') {
+                container.innerHTML = `<iframe src="https://player.vimeo.com/video/${meta.id}?autoplay=1" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+            } else if (meta.type === 'raw') {
+                container.innerHTML = `<video controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
+            }
+            setTimeout(() => showOverlay(false), 800);
+        }
 
-if (state.token && state.username) showHomeScreen();
+        function showOverlay(v) {
+            const o = document.getElementById('processing-overlay');
+            if (v) o.classList.remove('hidden'); else o.classList.add('hidden');
+        }
 
-const ytScript = document.createElement('script');
-ytScript.src = 'https://www.youtube.com/iframe_api';
-document.head.appendChild(ytScript);
-function onYouTubeIframeAPIReady() {}
+        // 2. Straight Chat Sequence Fix
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            socket.emit('chat-message', state.roomId, state.username, msg);
+            input.value = '';
+        }
 
-function switchAuthTab(tab) {
-  ['login','register','otp','forgot'].forEach(t => {
-    const el = document.getElementById('form-' + t);
-    if(el) el.style.display = t === tab ? 'block' : 'none';
-  });
-}
+        socket.on('receive-chat', ({ user, msg }) => {
+            const box = document.getElementById('messages');
+            const item = document.createElement('div');
+            item.className = 'msg-item';
+            item.innerHTML = `<span class="msg-user">${user}:</span> ${msg}`;
+            box.appendChild(item);
+            box.scrollTop = box.scrollHeight;
+        });
 
-function showMsg(element, text) {
-  if(!element) return;
-  element.textContent = text;
-  element.style.display = 'block';
-  setTimeout(() => { element.style.display = 'none'; }, 5000);
-}
+        // 3. WebRTC Mic Controls 
+        async function toggleMicPipeline() {
+            const btn = document.getElementById('mic-toggle-btn');
+            if (!state.micActive) {
+                try {
+                    state.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    state.micActive = true;
+                    btn.innerHTML = `<i class="fa-solid fa-microphone text-green-400"></i> Mic On`;
+                    btn.className = "bg-green-700 hover:bg-green-800 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
+                    socket.emit('mic-status-change', { roomId: state.roomId, micActive: true });
+                } catch (err) {
+                    alert("Mic blocked hai bhai!");
+                }
+            } else {
+                if (state.localStream) state.localStream.getTracks().forEach(t => t.stop());
+                state.micActive = false;
+                btn.innerHTML = `<i class="fa-solid fa-microphone-slash"></i> Mic Off`;
+                btn.className = "bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
+                socket.emit('mic-status-change', { roomId: state.roomId, micActive: false });
+            }
+        }
 
-function showNotif(text) {
-  const notif = document.createElement('div');
-  notif.className = 'notif';
-  notif.textContent = text;
-  document.body.appendChild(notif);
-  setTimeout(() => notif.remove(), 3000);
-}
+        socket.on('video-sync', (data) => {
+            if (data && data.action === 'loadNewVideo' && data.meta) {
+                showOverlay(true);
+                renderActivePlayer(data.meta);
+            }
+        });
 
-async function register() {
-  const username = document.getElementById('reg-username').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
-  const password = document.getElementById('reg-password').value;
-  const err = document.getElementById('reg-error');
-  if (!username || !email || !password) { showMsg(err, 'Sab fields bharo!'); return; }
-  try {
-    const res = await fetch('/api/register', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,email,password})});
-    const data = await res.json();
-    if (data.success) { saveUserData(data, email); showHomeScreen(); }
-    else { showMsg(err, data.message); }
-  } catch(e) { showMsg(err, 'Server error!'); }
-}
+        socket.on('user-joined', (u, roomUsers) => {
+            const list = document.getElementById('user-list'); list.innerHTML = '';
+            roomUsers.forEach(user => {
+                list.innerHTML += `<div class="flex items-center gap-2"><i class="fa-solid fa-ticket text-pink-500"></i> <span>${user}</span></div>`;
+            });
+        });
 
-async function login() {
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const err = document.getElementById('login-error');
-  if (!email || !password) { showMsg(err, 'Sab fields bharo!'); return; }
-  try {
-    const res = await fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-    const data = await res.json();
-    if (data.success) { saveUserData(data, email); showHomeScreen(); }
-    else { showMsg(err, data.message); }
-  } catch(e) { showMsg(err, 'Server error!'); }
-}
+        socket.on('user-left', (u, roomUsers) => {
+            const list = document.getElementById('user-list'); list.innerHTML = '';
+            roomUsers.forEach(user => {
+                list.innerHTML += `<div class="flex items-center gap-2"><i class="fa-solid fa-ticket text-pink-500"></i> <span>${user}</span></div>`;
+            });
+        });
 
-function saveUserData(data, email) {
-  state.token = data.token;
-  state.username = data.username;
-  state.email = email || data.email || '';
-  state.isPremium = data.is_premium || false;
-  state.avatar = data.avatar || '🎬';
-  localStorage.setItem('wp_token', data.token);
-  localStorage.setItem('wp_username', data.username);
-  localStorage.setItem('wp_email', state.email);
-  localStorage.setItem('wp_premium', state.isPremium);
-  localStorage.setItem('wp_avatar', state.avatar);
-}
-
-function logout() { localStorage.clear(); location.reload(); }
-
-function showHomeScreen() {
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('party-screen').style.display = 'none';
-  document.getElementById('home-screen').style.display = 'block';
-  document.getElementById('home-username').textContent = state.username;
-  document.getElementById('home-email').textContent = state.email;
-  document.getElementById('home-avatar').textContent = state.avatar;
-  document.getElementById('home-badge').textContent = state.isPremium ? '👑 PREMIUM' : 'FREE';
-  document.getElementById('home-badge').className = state.isPremium ? 'premium-badge' : 'free-badge';
-  document.getElementById('profile-avatar-display').textContent = state.avatar;
-  document.getElementById('profile-name-display').textContent = state.username;
-  document.getElementById('profile-email-display').textContent = state.email;
-  loadAvatarGrid();
-}
-
-function showHomeTab(tab) {
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.getElementById('home-tab-' + tab).classList.add('active');
-}
-
-function loadAvatarGrid() {
-  const grid = document.getElementById('avatar-grid');
-  if(!grid) return;
-  grid.innerHTML = '';
-  AVATARS.forEach(av => {
-    const div = document.createElement('div');
-    div.className = 'avatar-option' + (av === state.avatar ? ' selected' : '');
-    div.textContent = av;
-    div.onclick = () => {
-      state.avatar = av;
-      document.getElementById('profile-avatar-display').textContent = av;
-      document.querySelectorAll('.avatar-option').forEach(d => d.classList.remove('selected'));
-      div.classList.add('selected');
-    };
-    grid.appendChild(div);
-  });
-}
-
-function toggleAvatarPicker() {
-  const p = document.getElementById('avatar-picker');
-  p.style.display = p.style.display === 'none' ? 'block' : 'none';
-}
-
-function toggleTheme() {
-  state.isDark = !state.isDark;
-  document.body.classList.toggle('light', !state.isDark);
-}
-
-// ==========================================
-// ROOM ACTIONS & REAL-TIME MIC INTERACTION
-// ==========================================
-
-function createRoom() {
-  const generatedId = Math.random().toString(36).substring(2, 10).toUpperCase();
-  initPartyScreen(generatedId);
-}
-
-function joinRoom() {
-  const id = document.getElementById('join-room-input').value.trim().toUpperCase();
-  if(!id) { alert('Room ID sahi daalo!'); return; }
-  initPartyScreen(id);
-}
-
-function initPartyScreen(roomId) {
-  state.roomId = roomId;
-  document.getElementById('home-screen').style.display = 'none';
-  document.getElementById('party-screen').style.display = 'flex';
-  document.getElementById('room-display').textContent = `Room ID: ${state.roomId}`;
-  
-  // Join Room over Socket Signal
-  socket.emit('join-room', { roomId: state.roomId, username: state.username });
-  showNotif(`Room Joined: ${state.roomId}`);
-}
-
-function leaveRoom() {
-  // Stop mic stream track if active
-  if (state.micStream) {
-    state.micStream.getTracks().forEach(track => track.stop());
-    state.micStream = null;
-  }
-  state.isMicOn = false;
-  document.getElementById('btn-mic').classList.remove('active');
-  
-  // Close WebRTC peer sessions
-  Object.keys(state.peerConnections).forEach(id => {
-    state.peerConnections[id].close();
-  });
-  state.peerConnections = {};
-  document.getElementById('remote-audio-container').innerHTML = '';
-
-  socket.emit('leave-room', { roomId: state.roomId });
-  showHomeScreen();
-}
-
-// WebRTC System for Live Mic Transmission
-async function toggleMic() {
-  const micBtn = document.getElementById('btn-mic');
-  
-  if (!state.isMicOn) {
-    try {
-      // Step 1: Capture User Mic Stream Securely (Requires HTTPS)
-      state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      state.isMicOn = true;
-      micBtn.classList.add('active');
-      showNotif('🎙️ Mic On Ho Gaya!');
-
-      // Inform room members to establish peer stream pipeline
-      socket.emit('mic-status-change', { roomId: state.roomId, micActive: true });
-
-      // Add audio track to any existing operational dynamic connection
-      Object.keys(state.peerConnections).forEach(userId => {
-        const pc = state.peerConnections[userId];
-        state.micStream.getTracks().forEach(track => pc.addTrack(track, state.micStream));
-        initiateOffer(userId);
-      });
-
-    } catch (err) {
-      console.error(err);
-      showNotif('❌ Mic start nahi hua! Settings me check karein.');
-    }
-  } else {
-    // Turn Off Audio Track
-    if (state.micStream) {
-      state.micStream.getTracks().forEach(track => track.stop());
-      state.micStream = null;
-    }
-    state.isMicOn = false;
-    micBtn.classList.remove('active');
-    showNotif('🎙️ Mic Band!');
-    socket.emit('mic-status-change', { roomId: state.roomId, micActive: false });
-  }
-}
-
-// Create an RTC Offer targeting a specific Peer inside Room
-async function initiateOffer(userId) {
-  const pc = createPeerConnection(userId);
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  socket.emit('webrtc-signal', { to: userId, signal: { sdp: pc.localDescription } });
-}
-
-function createPeerConnection(userId) {
-  if (state.peerConnections[userId]) return state.peerConnections[userId];
-
-  const pc = new RTCPeerConnection(state.iceServers);
-  state.peerConnections[userId] = pc;
-
-  // Add current mic stream track if active
-  if (state.micStream) {
-    state.micStream.getTracks().forEach(track => pc.addTrack(track, state.micStream));
-  }
-
-  // Handle Candidate Routing
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      socket.emit('webrtc-signal', { to: userId, signal: { candidate: event.candidate } });
-    }
-  };
-
-  // Catch dynamic inbound remote track streaming data
-  pc.ontrack = (event) => {
-    let audioEl = document.getElementById(`audio-${userId}`);
-    if (!audioEl) {
-      audioEl = document.createElement('audio');
-      audioEl.id = `audio-${userId}`;
-      audioEl.autoplay = true;
-      audioEl.playsinline = true;
-      document.getElementById('remote-audio-container').appendChild(audioEl);
-    }
-    audioEl.srcObject = event.streams[0];
-  };
-
-  return pc;
-}
-
-// Inbound Signal Processing Handler (Offers, Answers, and Ice Candidates)
-socket.on('webrtc-signal', async ({ from, signal }) => {
-  const pc = createPeerConnection(from);
-
-  if (signal.sdp) {
-    await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-    if (signal.sdp.type === 'offer') {
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('webrtc-signal', { to: from, signal: { sdp: pc.localDescription } });
-    }
-  } else if (signal.candidate) {
-    try {
-      await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-    } catch (e) {
-      console.error("Error adding ice candidate", e);
-    }
-  }
-});
-
-socket.on('user-joined-room', ({ userId }) => {
-  if (state.isMicOn) {
-    initiateOffer(userId);
-  }
-});
-
-socket.on('user-left-room', ({ userId }) => {
-  if (state.peerConnections[userId]) {
-    state.peerConnections[userId].close();
-    delete state.peerConnections[userId];
-  }
-  const el = document.getElementById(`audio-${userId}`);
-  if(el) el.remove();
-});
-
-// ==========================================
-// CHAT & CORE INTERFACE MANAGEMENT LOGIC
-// ==========================================
-
-function sendMessage() {
-  const input = document.getElementById('msg-input');
-  const msg = input.value.trim();
-  if(!msg) return;
-  socket.emit('chat-message', { roomId: state.roomId, msg: msg, user: state.username });
-  input.value = '';
-}
-
-socket.on('receive-chat', ({ user, msg }) => {
-  const box = document.getElementById('messages');
-  const item = document.createElement('div');
-  item.className = 'msg-item';
-  item.innerHTML = `<span class="msg-user">${user}:</span> ${msg}`;
-  box.appendChild(item);
-  box.scrollTop = box.scrollHeight;
-});
-
-socket.on('room-users-update', ({ users }) => {
-  const list = document.getElementById('users-list');
-  list.innerHTML = users.map(u => `<li>🎬 ${u}</li>`).join('');
-});
-
-function toggleUrlBar() {
-  const bar = document.getElementById('url-bar');
-  state.urlBarVisible = !state.urlBarVisible;
-  bar.style.display = state.urlBarVisible ? 'flex' : 'none';
-}
-
-function copyRoomId() {
-  navigator.clipboard.writeText(state.roomId);
-  showNotif('📋 Room ID Copied!');
-}
-
-function loadVideo() {
-  showNotif('📺 Video Load Processing...');
-}
-function startScreenShare() { showNotif('🖥️ Screen share requires Desktop browser.'); }
-function saveProfile() { showNotif('💾 Changes Saved Successfully.'); }
-function applyCoupon() { showNotif('🎫 Feature Coming Soon.'); }
-</script>
+        function sendReaction(emoji) { socket.emit('reaction', state.roomId, emoji); }
+    </script>
 </body>
-          </html>
+</html>
