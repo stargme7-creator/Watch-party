@@ -65,14 +65,15 @@
         </div>
     </div>
 
-
     <div id="party-room-screen" class="w-full max-w-4xl space-y-4 hidden">
-        
         <div class="flex justify-between items-center bg-gray-900/40 p-3 rounded-lg border border-gray-800/60">
             <h1 class="text-2xl font-bold text-pink-500 pink-glow flex items-center gap-2">
                 <i class="fa-solid fa-clapperboard"></i> WatchParty
             </h1>
-            <div class="text-sm text-gray-400">Room ID: <span id="room-display-id" class="text-white font-mono font-bold bg-gray-800 px-2 py-1 rounded">---</span></div>
+            <div class="flex items-center gap-4">
+                <div class="text-sm text-gray-400">Room ID: <span id="room-display-id" class="text-white font-mono font-bold bg-gray-800 px-2 py-1 rounded">---</span></div>
+                <button onclick="leavePartyRoom()" class="text-xs bg-red-600 hover:bg-red-700 px-3 py-1 rounded font-bold transition"><i class="fa-solid fa-arrow-left"></i> Leave Room</button>
+            </div>
         </div>
 
         <div class="grid grid-cols-3 gap-2">
@@ -96,7 +97,7 @@
 
         <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden panel-bg flex items-center justify-center">
             <div id="processing-overlay" class="absolute top-2 right-2 bg-black/80 border border-pink-500 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 z-50 hidden">
-                <i class="fa-solid fa-tv animate-pulse text-pink-500"></i> Video Load Processing...
+                <i class="fa-solid fa-tv animate-pulse text-pink-500"></i> Video Syncing...
             </div>
             <div id="player-container" class="w-full h-full">
                 <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
@@ -140,10 +141,15 @@
         </div>
     </div>
 
+    <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
         let socket;
-        const peers = {}; // Holds Active RTCPeerConnections
+        let ytPlayer = null; 
+        let activePlayerType = null; // 'youtube' or 'raw'
+        let ignoreSyncEvents = false; // Infinite network broadcast loops lock flag
+        const peers = {}; 
+        
         const state = {
             roomId: '',
             username: localStorage.getItem('wp_username') || '',
@@ -154,7 +160,6 @@
 
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-        // UI Auth State Toggle Switcher
         function toggleAuthForm(mode) {
             const loginF = document.getElementById('login-form');
             const regF = document.getElementById('register-form');
@@ -172,11 +177,9 @@
             }
         }
 
-        // DATABASE LOGIN FLOW (Hooks into your PostgreSQL backend routers)
         async function handleLogin() {
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
-
             try {
                 const res = await fetch('/api/login', {
                     method: 'POST',
@@ -187,25 +190,17 @@
                 if(data.success) {
                     state.username = data.username;
                     state.token = data.token;
-                    
                     localStorage.setItem('wp_username', data.username);
                     localStorage.setItem('wp_token', data.token);
-
                     showLobbyView();
-                } else {
-                    alert(data.message);
-                }
-            } catch (err) {
-                alert("Database connect nahi ho paya!");
-            }
+                } else { alert(data.message); }
+            } catch (err) { alert("Database error!"); }
         }
 
-        // DATABASE REGISTER FLOW
         async function handleRegister() {
             const user = document.getElementById('reg-user').value;
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
-
             try {
                 const res = await fetch('/api/register', {
                     method: 'POST',
@@ -216,18 +211,12 @@
                 if(data.success) {
                     state.username = data.username;
                     state.token = data.token;
-
                     localStorage.setItem('wp_username', data.username);
                     localStorage.setItem('wp_token', data.token);
-
                     showLobbyView();
                     alert("Account Created!");
-                } else {
-                    alert(data.message);
-                }
-            } catch (err) {
-                alert("Registration failed!");
-            }
+                } else { alert(data.message); }
+            } catch (err) { alert("Registration failed!"); }
         }
 
         function showLobbyView() {
@@ -243,7 +232,6 @@
             window.location.reload();
         }
 
-        // SOCKET INIT & SYSTEM WORKSPACE ACTIVATOR
         function enterPartyRoom(action) {
             if(action === 'create') {
                 state.roomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
@@ -258,15 +246,38 @@
             document.body.className = "p-4"; 
             document.getElementById('room-display-id').innerText = state.roomId;
 
-            // Connect Live WebSocket Channels
+            // BUG FIX: Agar koi purana stale ya ghost socket socket pool me hai, use safe disconnect karo pehle
+            if (socket) { socket.disconnect(); }
+
             socket = io();
             socket.emit('join-room', { roomId: state.roomId, username: state.username });
 
             setupSocketListeners();
         }
 
+        // BUG FIX: Room se left lekar lobby me wapas aane ka proper cleanup structure
+        function leavePartyRoom() {
+            if(socket) {
+                socket.emit('leave-room', state.roomId);
+                socket.disconnect();
+            }
+            if (state.localStream) {
+                state.localStream.getTracks().forEach(t => t.stop());
+                state.micActive = false;
+                const btn = document.getElementById('mic-toggle-btn');
+                btn.innerHTML = `<i class="fa-solid fa-microphone-slash"></i> Mic Off`;
+                btn.className = "bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
+            }
+            Object.keys(peers).forEach(id => { if(peers[id]) peers[id].close(); delete peers[id]; });
+            document.getElementById('remote-audios').innerHTML = '';
+            
+            document.getElementById('party-room-screen').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            showLobbyView();
+        }
+
         // ===================================================
-        // WebRTC AUDIO ENGINE IMPLEMENTATION (Voice Pipeline)
+        // WebRTC AUDIO SYSTEM + ANDROID AUTO-PLAY BYPASS 
         // ===================================================
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
@@ -277,81 +288,66 @@
                     btn.innerHTML = `<i class="fa-solid fa-microphone text-green-400"></i> Mic On`;
                     btn.className = "bg-green-700 hover:bg-green-800 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
                     
-                    // Inject audio tracks into peer mesh loops
                     state.localStream.getAudioTracks().forEach(track => {
-                        Object.values(peers).forEach(pc => {
-                            pc.addTrack(track, state.localStream);
-                        });
+                        Object.values(peers).forEach(pc => { pc.addTrack(track, state.localStream); });
                     });
-
-                    socket.emit('mic-status-change', { roomId: state.roomId, micActive: true });
-                } catch (err) {
-                    alert("Mic active nahi hua! Please permissions allow karein.");
-                }
+                } catch (err) { alert("Mic open nahi ho saka! Permissions verify karein."); }
             } else {
-                if (state.localStream) {
-                    state.localStream.getTracks().forEach(t => t.stop());
-                }
+                if (state.localStream) state.localStream.getTracks().forEach(t => t.stop());
                 state.micActive = false;
                 btn.innerHTML = `<i class="fa-solid fa-microphone-slash"></i> Mic Off`;
                 btn.className = "bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
-                socket.emit('mic-status-change', { roomId: state.roomId, micActive: false });
             }
         }
 
         function initPeerConnection(targetUserId, initiateOffer = false) {
             if (peers[targetUserId]) return peers[targetUserId];
-
             const pc = new RTCPeerConnection(rtcConfig);
             peers[targetUserId] = pc;
 
             if (state.localStream) {
                 state.localStream.getAudioTracks().forEach(track => pc.addTrack(track, state.localStream));
             }
-
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('webrtc-ice', targetUserId, event.candidate);
-                }
-            };
-
+            pc.onicecandidate = (event) => { if (event.candidate) socket.emit('webrtc-ice', targetUserId, event.candidate); };
+            
+            // ANDROID BYPASS: Remote audio track receive hone par bypass attributes apply karo
             pc.ontrack = (event) => {
                 let audioEl = document.getElementById(`audio-${targetUserId}`);
                 if (!audioEl) {
-                    audioEl = document.createElement('audio');
+                    audioEl = document.createElement('audio'); 
                     audioEl.id = `audio-${targetUserId}`;
-                    audioEl.autoplay = true;
+                    audioEl.autoplay = true; 
+                    audioEl.setAttribute('playsinline', 'true'); // Mobile web fix
                     document.getElementById('remote-audios').appendChild(audioEl);
                 }
                 audioEl.srcObject = event.streams[0];
+                
+                // Android User Gesture bypass hack trigger loop
+                audioEl.play().catch(() => {
+                    console.log("Android audio muted mode locked. Waiting for a screen tap...");
+                    // Screen tap hote hi force-play kardo
+                    document.body.addEventListener('click', () => { audioEl.play(); }, { once: true });
+                });
             };
 
             if (initiateOffer) {
-                pc.createOffer().then(offer => {
-                    return pc.setLocalDescription(offer);
-                }).then(() => {
+                pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
                     socket.emit('webrtc-offer', targetUserId, pc.localDescription);
                 });
             }
-
             return pc;
         }
 
         // ===================================================
-        // STREAM CONTROL COMPONENT (YouTube/Vimeo Parsing)
+        // VIDEO PLAYER MULTI ENGINE (PARSING & LIVE DETECT)
         // ===================================================
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
             if (url.match(/\.(mp4|webm|ogg|m3u8)($|\?)/i)) return { type: 'raw', id: url };
-            
             const ytRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
             const ytMatch = url.match(ytRegex);
             if (ytMatch && ytMatch[2].length === 11) return { type: 'youtube', id: ytMatch[2] };
-
-            const vimeoRegex = /(?:vimeo)\.com.*(?:plugins\/video\/|video\/|\/)([0-9]+)/;
-            const vimeoMatch = url.match(vimeoRegex);
-            if (vimeoMatch) return { type: 'vimeo', id: vimeoMatch[1] };
             return null;
         }
 
@@ -363,21 +359,62 @@
                 socket.emit('video-sync', state.roomId, { action: 'loadNewVideo', meta: mediaMeta });
                 renderActivePlayer(mediaMeta);
                 urlInput.value = '';
-            } else {
-                alert("URL format sahi nahi hai!");
-            }
+            } else { alert("URL galat hai!"); }
         }
 
         function renderActivePlayer(meta) {
             const container = document.getElementById('player-container');
+            ytPlayer = null; 
+            
             if (meta.type === 'youtube') {
-                container.innerHTML = `<iframe src="https://www.youtube.com/embed/${meta.id}?enablejsapi=1&autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-            } else if (meta.type === 'vimeo') {
-                container.innerHTML = `<iframe src="https://player.vimeo.com/video/${meta.id}?autoplay=1" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+                activePlayerType = 'youtube';
+                container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
+                
+                // YouTube Iframe instance inject logic
+                ytPlayer = new YT.Player('yt-iframe-placeholder', {
+                    videoId: meta.id,
+                    playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'controls': 1, 'rel': 0 },
+                    events: { 'onStateChange': onYouTubePlayerStateChange }
+                });
             } else if (meta.type === 'raw') {
-                container.innerHTML = `<video controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
+                activePlayerType = 'raw';
+                container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
+                setupRawVideoListeners();
             }
             setTimeout(() => showOverlay(false), 800);
+        }
+
+        // BUG FIX: YouTube live events (Play / Pause tracking) listener
+        function onYouTubePlayerStateChange(event) {
+            if (ignoreSyncEvents || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return; 
+            const currentTime = ytPlayer.getCurrentTime();
+            
+            if (event.data === YT.PlayerState.PLAYING) {
+                socket.emit('video-sync', state.roomId, { action: 'play', time: currentTime });
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                socket.emit('video-sync', state.roomId, { action: 'pause', time: currentTime });
+            }
+        }
+
+        // BUG FIX: HTML5 normal elements events tracker
+        function setupRawVideoListeners() {
+            const videoEl = document.getElementById('raw-video-element');
+            if(!videoEl) return;
+
+            videoEl.addEventListener('play', () => {
+                if (ignoreSyncEvents) return;
+                socket.emit('video-sync', state.roomId, { action: 'play', time: videoEl.currentTime });
+            });
+
+            videoEl.addEventListener('pause', () => {
+                if (ignoreSyncEvents) return;
+                socket.emit('video-sync', state.roomId, { action: 'pause', time: videoEl.currentTime });
+            });
+
+            videoEl.addEventListener('seeked', () => {
+                if (ignoreSyncEvents) return;
+                socket.emit('video-sync', state.roomId, { action: 'seek', time: videoEl.currentTime });
+            });
         }
 
         function showOverlay(v) {
@@ -386,17 +423,15 @@
         }
 
         function sendMessage() {
-            const input = document.getElementById('msg-input');
-            const msg = input.value.trim();
-            if (!msg) return;
-            socket.emit('chat-message', state.roomId, state.username, msg);
+            const input = document.getElementById('msg-input'); if (!input.value.trim()) return;
+            socket.emit('chat-message', state.roomId, state.username, input.value.trim());
             input.value = '';
         }
 
         function sendReaction(emoji) { socket.emit('reaction', state.roomId, emoji); }
 
         // ===================================================
-        // CORE SOCKET CHANNEL EVENT LISTENERS ENGINE
+        // CHANNELS CORE SUBSCRIPTION EVENT MESSAGES CAPTURER
         // ===================================================
         function setupSocketListeners() {
             socket.on('receive-chat', ({ user, msg }) => {
@@ -404,87 +439,79 @@
                 const item = document.createElement('div');
                 item.className = 'msg-item';
                 item.innerHTML = `<span class="msg-user">${user}:</span> ${msg}`;
-                box.appendChild(item);
-                box.scrollTop = box.scrollHeight;
+                box.appendChild(item); box.scrollTop = box.scrollHeight;
             });
 
+            // BUG FIX: Incoming sync signal packets capture loop execution matrix
             socket.on('video-sync', (data) => {
-                if (data && data.action === 'loadNewVideo' && data.meta) {
-                    showOverlay(true);
-                    renderActivePlayer(data.meta);
+                if (!data) return;
+
+                // Naya link payload handle karne ke liye
+                if (data.action === 'loadNewVideo' && data.meta) {
+                    showOverlay(true); renderActivePlayer(data.meta); return;
                 }
+
+                // Loop lock bypass handler flag activated
+                ignoreSyncEvents = true;
+
+                if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+                    const localTime = ytPlayer.getCurrentTime();
+                    // Agar dono players ke samay me 1.5 seconds se zyada ka farq hai toh jump (seek) karo
+                    if (Math.abs(localTime - data.time) > 1.5) { ytPlayer.seekTo(data.time, true); }
+                    
+                    if (data.action === 'play') { ytPlayer.playVideo(); }
+                    else if (data.action === 'pause') { ytPlayer.pauseVideo(); }
+                } 
+                else if (activePlayerType === 'raw') {
+                    const videoEl = document.getElementById('raw-video-element');
+                    if (videoEl) {
+                        if (Math.abs(videoEl.currentTime - data.time) > 1.5) { videoEl.currentTime = data.time; }
+                        if (data.action === 'play') { videoEl.play(); }
+                        else if (data.action === 'pause') { videoEl.pause(); }
+                    }
+                }
+
+                // Unlock monitoring loop context stream pipeline
+                setTimeout(() => { ignoreSyncEvents = false; }, 400);
             });
 
-            // WebRTC Core Signaling Protocols Handles
-            socket.on('new-peer', (targetUserId) => {
-                initPeerConnection(targetUserId, true);
-            });
-
+            // WebRTC loop architecture signaling nodes
+            socket.on('new-peer', (targetUserId) => { initPeerConnection(targetUserId, true); });
             socket.on('webrtc-offer', (fromId, offer) => {
                 const pc = initPeerConnection(fromId, false);
-                pc.setRemoteDescription(new RTCSessionDescription(offer)).then(() => {
-                    return pc.createAnswer();
-                }).then(answer => {
+                pc.setRemoteDescription(new RTCSessionDescription(offer)).then(() => pc.createAnswer()).then(answer => {
                     return pc.setLocalDescription(answer);
-                }).then(() => {
-                    socket.emit('webrtc-answer', fromId, pc.localDescription);
-                });
+                }).then(() => socket.emit('webrtc-answer', fromId, pc.localDescription));
             });
-
-            socket.on('webrtc-answer', (fromId, answer) => {
-                const pc = peers[fromId];
-                if (pc) pc.setRemoteDescription(new RTCSessionDescription(answer));
-            });
-
-            socket.on('webrtc-ice', (fromId, candidate) => {
-                const pc = peers[fromId];
-                if (pc) pc.addIceCandidate(new RTCIceCandidate(candidate));
-            });
-
+            socket.on('webrtc-answer', (fromId, answer) => { if (peers[fromId]) peers[fromId].setRemoteDescription(new RTCSessionDescription(answer)); });
+            socket.on('webrtc-ice', (fromId, candidate) => { if (peers[fromId]) peers[fromId].addIceCandidate(new RTCIceCandidate(candidate)); });
             socket.on('peer-disconnected', (targetUserId) => {
-                if (peers[targetUserId]) {
-                    peers[targetUserId].close();
-                    delete peers[targetUserId];
-                }
-                const audioEl = document.getElementById(`audio-${targetUserId}`);
-                if (audioEl) audioEl.remove();
+                if (peers[targetUserId]) { peers[targetUserId].close(); delete peers[targetUserId]; }
+                if (document.getElementById(`audio-${targetUserId}`)) document.getElementById(`audio-${targetUserId}`).remove();
             });
 
-            // Real-Time Online Status Generator Module
             function updateOnlineUsersList(roomUsers) {
-                const list = document.getElementById('user-list'); 
-                list.innerHTML = '';
+                const list = document.getElementById('user-list'); list.innerHTML = '';
                 if (!roomUsers || roomUsers.length === 0) {
-                    list.innerHTML = `<div class="text-xs text-gray-500 italic p-1">Lobby empty...</div>`;
-                    return;
+                    list.innerHTML = `<div class="text-xs text-gray-500 italic p-1">Empty...</div>`; return;
                 }
                 roomUsers.forEach(user => {
                     list.innerHTML += `
                         <div class="flex items-center justify-between p-1 rounded hover:bg-gray-800/40 transition">
                             <div class="flex items-center gap-2">
-                                <span class="relative flex h-2 w-2">
-                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                </span>
+                                <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
                                 <span class="text-sm font-medium text-gray-200">${user}</span>
                             </div>
                             <span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full font-mono uppercase tracking-wider">Online</span>
-                        </div>
-                    `;
+                        </div>`;
                 });
             }
-
             socket.on('user-joined', (u, roomUsers) => { updateOnlineUsersList(roomUsers); });
             socket.on('user-left', (u, roomUsers) => { updateOnlineUsersList(roomUsers); });
             socket.on('room-users-update', (data) => { if(data && data.users) updateOnlineUsersList(data.users); });
         }
 
-        // DOM Loader Session Check (Refresh Lock Engine)
-        window.addEventListener('DOMContentLoaded', () => {
-            if (state.token && state.username) {
-                showLobbyView();
-            }
-        });
+        window.addEventListener('DOMContentLoaded', () => { if (state.token && state.username) showLobbyView(); });
     </script>
 </body>
-</html>
+            </html>
