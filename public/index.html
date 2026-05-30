@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WatchParty</title>
+    <title>WatchParty - Multi Stream & Sync</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/socket.io/socket.io.js"></script>
     <style>
         body { background-color: #0d0e15; color: #ffffff; font-family: sans-serif; }
-        .pink-glow { text-shadow: 0 0 10px #ff007f; }
+        .pink-glow { text-shadow: 0 0 10px #ff007f; box-shadow: 0 0 15px rgba(255, 0, 127, 0.2); }
         .panel-bg { background-color: #141622; border: 1px solid #1f2335; }
         #messages { height: 220px; overflow-y: auto; display: flex; flex-direction: column; }
         .msg-item { margin-bottom: 6px; padding: 4px 8px; border-bottom: 1px solid #1f2335; }
@@ -17,89 +17,223 @@
         iframe, video { width: 100%; height: 100%; border-radius: 8px; border: none; }
     </style>
 </head>
-<body class="p-4">
+<body class="p-4 flex flex-col min-h-screen justify-center items-center">
 
-    <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold text-pink-500 pink-glow flex items-center gap-2">
-            <i class="fa-solid fa-clapperboard"></i> WatchParty
-        </h1>
-        <div class="text-sm text-gray-400">Room ID: <span id="room-display-id" class="text-white font-mono font-bold">---</span></div>
-    </div>
-
-    <div class="grid grid-cols-3 gap-2 mb-4">
-        <button class="bg-red-600 hover:bg-red-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
-            <i class="fa-brands fa-youtube"></i> YouTube
-        </button>
-        <button class="bg-purple-600 hover:bg-purple-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
-            <i class="fa-solid fa-desktop"></i> Share
-        </button>
-        <button id="mic-toggle-btn" onclick="toggleMicPipeline()" class="bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
-            <i class="fa-solid fa-microphone-slash"></i> Mic Off
-        </button>
-    </div>
-
-    <div class="flex gap-2 mb-4">
-        <input type="text" id="video-url-input" placeholder="YouTube, Vimeo, Twitch ya MP4 Video Link paste karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500">
-        <button onclick="playNewVideoFromInput()" class="bg-red-600 hover:bg-red-700 px-4 rounded text-white flex items-center justify-center">
-            <i class="fa-solid fa-play"></i>
-        </button>
-    </div>
-
-    <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden mb-4 panel-bg flex items-center justify-center">
-        <div id="processing-overlay" class="absolute top-2 right-2 bg-black/80 border border-pink-500 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 z-50 hidden">
-            <i class="fa-solid fa-tv animate-pulse text-pink-500"></i> Video Load Processing...
+    <div id="auth-screen" class="w-full max-w-md panel-bg p-6 rounded-xl space-y-4">
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-pink-500 pink-glow inline-block px-4 py-1 rounded-md mb-2">
+                <i class="fa-solid fa-clapperboard"></i> WatchParty
+            </h1>
+            <p class="text-xs text-gray-400">Dosto ke sath YouTube aur multi-platform videos dekho ek sath</p>
         </div>
-        <div id="player-container" class="w-full h-full">
-            <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
-                <i class="fa-solid fa-film text-4xl mb-2"></i>
-                <p class="font-semibold text-sm text-gray-300">YouTube ya Screen Share karo</p>
-                <p class="text-xs text-gray-500 mt-1">Screen share sirf PC Chrome pe</p>
+
+        <div class="flex border-b border-gray-800 text-sm font-semibold">
+            <button id="tab-login" onclick="toggleAuthForm('login')" class="flex-1 pb-2 border-b-2 border-pink-500 text-pink-500">Login</button>
+            <button id="tab-register" onclick="toggleAuthForm('register')" class="flex-1 pb-2 border-b-2 border-transparent text-gray-400">Register</button>
+        </div>
+
+        <div id="login-form" class="space-y-3">
+            <input type="email" id="login-email" placeholder="Email Address" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <input type="password" id="login-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <button onclick="handleLogin()" class="w-full bg-pink-600 hover:bg-pink-700 py-2 rounded font-bold text-sm transition">Sign In</button>
+        </div>
+
+        <div id="register-form" class="space-y-3 hidden">
+            <input type="text" id="reg-user" placeholder="Choose Username" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <input type="email" id="reg-email" placeholder="Email Address" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <input type="password" id="reg-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <button onclick="handleRegister()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm transition">Create Account</button>
+        </div>
+
+        <div id="lobby-panel" class="pt-4 border-t border-gray-800 space-y-3 hidden">
+            <div class="text-xs font-bold text-pink-400 uppercase tracking-wider">Room Control Center</div>
+            <div class="flex gap-2">
+                <input type="text" id="join-room-id" placeholder="Enter Room ID" class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono uppercase tracking-wider focus:outline-none focus:border-pink-500">
+                <button onclick="enterPartyRoom('join')" class="bg-purple-600 hover:bg-purple-700 px-4 rounded text-xs font-bold uppercase transition">Join Room</button>
+            </div>
+            <div class="relative flex py-2 items-center">
+                <div class="flex-grow border-t border-gray-800"></div>
+                <span class="flex-shrink mx-4 text-gray-500 text-xs">YA</span>
+                <div class="flex-grow border-t border-gray-800"></div>
+            </div>
+            <button onclick="enterPartyRoom('create')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 py-2 rounded font-bold text-sm transition">
+                <i class="fa-solid fa-plus mr-1"></i> Create Custom Room
+            </button>
+        </div>
+    </div>
+
+
+    <div id="party-room-screen" class="w-full max-w-4xl space-y-4 hidden">
+        
+        <div class="flex justify-between items-center bg-gray-900/40 p-3 rounded-lg border border-gray-800/60">
+            <h1 class="text-2xl font-bold text-pink-500 pink-glow flex items-center gap-2">
+                <i class="fa-solid fa-clapperboard"></i> WatchParty
+            </h1>
+            <div class="text-sm text-gray-400">Room ID: <span id="room-display-id" class="text-white font-mono font-bold bg-gray-800 px-2 py-1 rounded">---</span></div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+            <button class="bg-red-600 hover:bg-red-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
+                <i class="fa-brands fa-youtube"></i> YouTube
+            </button>
+            <button class="bg-purple-600 hover:bg-purple-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
+                <i class="fa-solid fa-desktop"></i> Share
+            </button>
+            <button id="mic-toggle-btn" onclick="toggleMicPipeline()" class="bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
+                <i class="fa-solid fa-microphone-slash"></i> Mic Off
+            </button>
+        </div>
+
+        <div class="flex gap-2">
+            <input type="text" id="video-url-input" placeholder="YouTube, Vimeo, Twitch ya MP4 Video Link paste karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500">
+            <button onclick="playNewVideoFromInput()" class="bg-red-600 hover:bg-red-700 px-5 rounded text-white flex items-center justify-center transition">
+                <i class="fa-solid fa-play"></i>
+            </button>
+        </div>
+
+        <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden panel-bg flex items-center justify-center">
+            <div id="processing-overlay" class="absolute top-2 right-2 bg-black/80 border border-pink-500 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 z-50 hidden">
+                <i class="fa-solid fa-tv animate-pulse text-pink-500"></i> Video Load Processing...
+            </div>
+            <div id="player-container" class="w-full h-full">
+                <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
+                    <i class="fa-solid fa-film text-4xl mb-2"></i>
+                    <p class="font-semibold text-sm text-gray-300">YouTube ya Screen Share karo</p>
+                    <p class="text-xs text-gray-500 mt-1">Koi bhi online link lekar upar play karo</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-between bg-gray-900/50 p-2 rounded-lg border border-gray-800">
+            <button onclick="sendReaction('❤️')" class="text-xl transform hover:scale-125 transition">❤️</button>
+            <button onclick="sendReaction('😂')" class="text-xl transform hover:scale-125 transition">😂</button>
+            <button onclick="sendReaction('😮')" class="text-xl transform hover:scale-125 transition">😮</button>
+            <button onclick="sendReaction('😢')" class="text-xl transform hover:scale-125 transition">😢</button>
+            <button onclick="sendReaction('👏')" class="text-xl transform hover:scale-125 transition">👏</button>
+            <button onclick="sendReaction('🔥')" class="text-xl transform hover:scale-125 transition">🔥</button>
+            <button onclick="sendReaction('💀')" class="text-xl transform hover:scale-125 transition">💀</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="panel-bg p-3 rounded-lg md:col-span-1">
+                <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-users text-xs"></i> Room Users
+                </h3>
+                <div id="user-list" class="space-y-1 text-sm font-medium text-gray-300"></div>
+            </div>
+
+            <div class="panel-bg p-3 rounded-lg md:col-span-2 flex flex-col justify-between">
+                <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-comments text-xs"></i> Live Chat
+                </h3>
+                <div id="messages" class="mb-2"></div>
+                <div class="flex gap-2 border-t border-gray-800 pt-2">
+                    <input type="text" id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="Kuch likho..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-pink-500">
+                    <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 px-4 rounded text-xs font-bold text-white uppercase transition">Send</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="flex justify-between bg-gray-900/50 p-2 rounded-lg mb-4 border border-gray-800">
-        <button onclick="sendReaction('❤️')" class="text-xl transform hover:scale-125 transition">❤️</button>
-        <button onclick="sendReaction('😂')" class="text-xl transform hover:scale-125 transition">😂</button>
-        <button onclick="sendReaction('😮')" class="text-xl transform hover:scale-125 transition">😮</button>
-        <button onclick="sendReaction('😢')" class="text-xl transform hover:scale-125 transition">😢</button>
-        <button onclick="sendReaction('👏')" class="text-xl transform hover:scale-125 transition">👏</button>
-        <button onclick="sendReaction('🔥')" class="text-xl transform hover:scale-125 transition">🔥</button>
-        <button onclick="sendReaction('💀')" class="text-xl transform hover:scale-125 transition">💀</button>
-    </div>
-
-    <div class="panel-bg p-3 rounded-lg mb-4">
-        <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <i class="fa-solid fa-users text-xs"></i> Online Users
-        </h3>
-        <div id="user-list" class="space-y-1 text-sm font-medium text-gray-300"></div>
-    </div>
-
-    <div class="panel-bg p-3 rounded-lg flex flex-col justify-between">
-        <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <i class="fa-solid fa-comments text-xs"></i> Live Chat
-        </h3>
-        <div id="messages" class="mb-2"></div>
-        <div class="flex gap-2 border-t border-gray-800 pt-2">
-            <input type="text" id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="Kuch likho..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-pink-500">
-            <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 px-4 rounded text-xs font-bold text-white uppercase">Send</button>
-        </div>
-    </div>
-
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
+        let socket;
         const state = {
-            roomId: urlParams.get('room') || 'ROOM_' + Math.floor(1000 + Math.random() * 9000),
-            username: urlParams.get('username') || 'User_' + Math.floor(Math.random() * 100),
+            roomId: '',
+            username: '',
+            token: '',
             micActive: false,
             localStream: null
         };
 
-        document.getElementById('room-display-id').innerText = state.roomId;
-        const socket = io();
-        socket.emit('join-room', { roomId: state.roomId, username: state.username });
+        // UI View toggler logic
+        function toggleAuthForm(mode) {
+            const loginF = document.getElementById('login-form');
+            const regF = document.getElementById('register-form');
+            const tabL = document.getElementById('tab-login');
+            const tabR = document.getElementById('tab-register');
 
-        // 1. Multi Platform Engine Converter
+            if (mode === 'login') {
+                loginF.classList.remove('hidden'); regF.classList.add('hidden');
+                tabL.className = "flex-1 pb-2 border-b-2 border-pink-500 text-pink-500";
+                tabR.className = "flex-1 pb-2 border-b-2 border-transparent text-gray-400";
+            } else {
+                regF.classList.remove('hidden'); loginF.classList.add('hidden');
+                tabR.className = "flex-1 pb-2 border-b-2 border-pink-500 text-pink-500";
+                tabL.className = "flex-1 pb-2 border-b-2 border-transparent text-gray-400";
+            }
+        }
+
+        // BACKEND API CONNECTORS
+        async function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, password: pass })
+            });
+            const data = await res.json();
+            if(data.success) {
+                state.username = data.username;
+                state.token = data.token;
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('register-form').classList.add('hidden');
+                document.getElementById('lobby-panel').classList.remove('hidden');
+                alert("Login successful! Choose room options below.");
+            } else {
+                alert(data.message);
+            }
+        }
+
+        async function handleRegister() {
+            const user = document.getElementById('reg-user').value;
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-pass').value;
+
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, email: email, password: pass })
+            });
+            const data = await res.json();
+            if(data.success) {
+                state.username = data.username;
+                state.token = data.token;
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('register-form').classList.add('hidden');
+                document.getElementById('lobby-panel').classList.remove('hidden');
+                alert("Registration successful!");
+            } else {
+                alert(data.message);
+            }
+        }
+
+        // INITIALIZE SOCKET & ENTER WATCHPARTY ROOM 
+        function enterPartyRoom(action) {
+            if(action === 'create') {
+                state.roomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
+            } else {
+                const rInput = document.getElementById('join-room-id').value.trim().toUpperCase();
+                if(!rInput) return alert("Please enter a valid Room ID!");
+                state.roomId = rInput;
+            }
+
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('party-room-screen').classList.remove('hidden');
+            document.body.className = "p-4"; 
+
+            document.getElementById('room-display-id').innerText = state.roomId;
+
+            socket = io();
+            socket.emit('join-room', { roomId: state.roomId, username: state.username });
+
+            setupSocketListeners();
+        }
+
+        // ===================================================
+        // CORE INTEGRATED FEATURE LOGIC (Multi-Video, Chat, Mic)
+        // ===================================================
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
@@ -124,7 +258,7 @@
                 renderActivePlayer(mediaMeta);
                 urlInput.value = '';
             } else {
-                alert("Link supported nahi hai bhai!");
+                alert("Bhai, Video link correct nahi hai!");
             }
         }
 
@@ -145,7 +279,6 @@
             if (v) o.classList.remove('hidden'); else o.classList.add('hidden');
         }
 
-        // 2. Straight Chat Sequence Fix
         function sendMessage() {
             const input = document.getElementById('msg-input');
             const msg = input.value.trim();
@@ -154,16 +287,6 @@
             input.value = '';
         }
 
-        socket.on('receive-chat', ({ user, msg }) => {
-            const box = document.getElementById('messages');
-            const item = document.createElement('div');
-            item.className = 'msg-item';
-            item.innerHTML = `<span class="msg-user">${user}:</span> ${msg}`;
-            box.appendChild(item);
-            box.scrollTop = box.scrollHeight;
-        });
-
-        // 3. WebRTC Mic Controls 
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
             if (!state.micActive) {
@@ -174,7 +297,7 @@
                     btn.className = "bg-green-700 hover:bg-green-800 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
                     socket.emit('mic-status-change', { roomId: state.roomId, micActive: true });
                 } catch (err) {
-                    alert("Mic blocked hai bhai!");
+                    alert("Mic open nahi hua bhai, permissions allow karo!");
                 }
             } else {
                 if (state.localStream) state.localStream.getTracks().forEach(t => t.stop());
@@ -185,28 +308,39 @@
             }
         }
 
-        socket.on('video-sync', (data) => {
-            if (data && data.action === 'loadNewVideo' && data.meta) {
-                showOverlay(true);
-                renderActivePlayer(data.meta);
-            }
-        });
-
-        socket.on('user-joined', (u, roomUsers) => {
-            const list = document.getElementById('user-list'); list.innerHTML = '';
-            roomUsers.forEach(user => {
-                list.innerHTML += `<div class="flex items-center gap-2"><i class="fa-solid fa-ticket text-pink-500"></i> <span>${user}</span></div>`;
-            });
-        });
-
-        socket.on('user-left', (u, roomUsers) => {
-            const list = document.getElementById('user-list'); list.innerHTML = '';
-            roomUsers.forEach(user => {
-                list.innerHTML += `<div class="flex items-center gap-2"><i class="fa-solid fa-ticket text-pink-500"></i> <span>${user}</span></div>`;
-            });
-        });
-
         function sendReaction(emoji) { socket.emit('reaction', state.roomId, emoji); }
+
+        function setupSocketListeners() {
+            socket.on('receive-chat', ({ user, msg }) => {
+                const box = document.getElementById('messages');
+                const item = document.createElement('div');
+                item.className = 'msg-item';
+                item.innerHTML = `<span class="msg-user">${user}:</span> ${msg}`;
+                box.appendChild(item);
+                box.scrollTop = box.scrollHeight;
+            });
+
+            socket.on('video-sync', (data) => {
+                if (data && data.action === 'loadNewVideo' && data.meta) {
+                    showOverlay(true);
+                    renderActivePlayer(data.meta);
+                }
+            });
+
+            socket.on('user-joined', (u, roomUsers) => {
+                const list = document.getElementById('user-list'); list.innerHTML = '';
+                roomUsers.forEach(user => {
+                    list.innerHTML += `<div class="flex items-center gap-2"><i class="fa-solid fa-ticket text-pink-500"></i> <span>${user}</span></div>`;
+                });
+            });
+
+            socket.on('user-left', (u, roomUsers) => {
+                const list = document.getElementById('user-list'); list.innerHTML = '';
+                roomUsers.forEach(user => {
+                    list.innerHTML += `<div class="flex items-center gap-2"><i class="fa-solid fa-ticket text-pink-500"></i> <span>${user}</span></div>`;
+                });
+            });
+        }
     </script>
 </body>
-</html>
+    </html>
