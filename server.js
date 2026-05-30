@@ -22,12 +22,12 @@ const pool = new Pool({
   ssl: false
 });
 
+// Tables Init
 pool.query(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(50) UNIQUE NOT NULL, email VARCHAR(100) UNIQUE NOT NULL, password VARCHAR(200) NOT NULL, is_verified BOOLEAN DEFAULT TRUE, is_premium BOOLEAN DEFAULT FALSE, avatar TEXT DEFAULT 'movie', bio TEXT DEFAULT '', otp VARCHAR(6), otp_expires TIMESTAMP, last_room_time TIMESTAMP, created_at TIMESTAMP DEFAULT NOW())`).then(() => console.log('Users ready!')).catch(err => console.log('Error:', err.message));
-
 pool.query(`CREATE TABLE IF NOT EXISTS room_history (id SERIAL PRIMARY KEY, user_email VARCHAR(100), room_id VARCHAR(20), created_at TIMESTAMP DEFAULT NOW())`).then(() => console.log('History ready!')).catch(err => console.log('Error:', err.message));
-
 pool.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, user_email VARCHAR(100), subject VARCHAR(200), message TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT NOW())`).then(() => console.log('Support ready!')).catch(err => console.log('Error:', err.message));
 
+// API Routes
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   try {
@@ -182,12 +182,9 @@ app.post('/api/update-room-time', async (req, res) => {
 
 const rooms = {};
 
-// ==========================================
-// SOCKET.IO REAL-TIME ROUTING ENGINE WITH MIC
-// ==========================================
+// Socket routing mechanism
 io.on('connection', (socket) => {
   
-  // 1. Join Room Logic (Frontend Objects aur Multi-args dono support karega)
   socket.on('join-room', (data, fallbackArg) => {
     let roomId, username;
     if (data && typeof data === 'object') {
@@ -197,7 +194,6 @@ io.on('connection', (socket) => {
       roomId = data;
       username = fallbackArg;
     }
-
     if (!roomId || !username) return;
 
     socket.join(roomId);
@@ -207,53 +203,43 @@ io.on('connection', (socket) => {
     if (!rooms[roomId]) rooms[roomId] = [];
     if (!rooms[roomId].includes(username)) rooms[roomId].push(username);
 
-    // Dono frontends ke UI states ko update bhejte hain
     io.to(roomId).emit('user-joined', username, rooms[roomId]);
     io.to(roomId).emit('room-users-update', { users: rooms[roomId] });
     
-    // WebRTC connection triggers for Live Mic Signaling
     socket.to(roomId).emit('user-joined-room', { userId: socket.id, username: username });
     socket.to(roomId).emit('new-peer', socket.id, username);
   });
 
-  // 2. WebRTC Multi-User Audio/Mic Signaling Bridge
+  // WebRTC Pipeline Signals
   socket.on('webrtc-signal', ({ to, signal }) => {
-    io.to(to).emit('webrtc-signal', {
-      from: socket.id,
-      signal: signal
-    });
+    io.to(to).emit('webrtc-signal', { from: socket.id, signal });
   });
 
   socket.on('mic-status-change', ({ roomId, micActive }) => {
     socket.to(roomId).emit('user-mic-updated', { userId: socket.id, micActive });
   });
 
-  // 3. Fallback WebRTC Default Connection Methods
   socket.on('webrtc-offer', (targetId, offer) => {
     io.to(targetId).emit('webrtc-offer', socket.id, offer);
   });
-
   socket.on('webrtc-answer', (targetId, answer) => {
     io.to(targetId).emit('webrtc-answer', socket.id, answer);
   });
-
   socket.on('webrtc-ice', (targetId, candidate) => {
     io.to(targetId).emit('webrtc-ice', socket.id, candidate);
   });
 
-  // 4. Chat aur Synchronization Events
+  // Fixed Chat Routing Engine (Chronological Only)
   socket.on('chat-message', (roomId, username, message) => {
-    // Handling object fallback pattern from new client script
     if (roomId && typeof roomId === 'object' && roomId.roomId) {
       const payload = roomId;
       io.to(payload.roomId).emit('receive-chat', { user: payload.user || payload.username, msg: payload.msg });
-      io.to(payload.roomId).emit('chat-message', payload.user || payload.username, payload.msg);
     } else {
-      io.to(roomId).emit('chat-message', username, message);
       io.to(roomId).emit('receive-chat', { user: username, msg: message });
     }
   });
 
+  // Universal Video Stream Sync
   socket.on('video-sync', (roomId, data) => {
     socket.to(roomId).emit('video-sync', data);
   });
@@ -262,39 +248,11 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('reaction', socket.username, emoji);
   });
 
-  // 5. Screen Share Functionality
   socket.on('screen-share-started', (roomId) => {
     socket.to(roomId).emit('screen-share-started', socket.id, socket.username);
   });
-
   socket.on('screen-share-stopped', (roomId) => {
     socket.to(roomId).emit('screen-share-stopped', socket.id);
-  });
-
-  socket.on('screen-share-request', (roomId) => {
-    socket.to(roomId).emit('screen-share-request', socket.id, socket.username);
-  });
-
-  socket.on('screen-share-approved', (targetId) => {
-    io.to(targetId).emit('screen-share-approved');
-  });
-
-  socket.on('screen-share-rejected', (targetId) => {
-    io.to(targetId).emit('screen-share-rejected');
-  });
-
-  // 6. Leave/Disconnect Engine
-  socket.on('leave-room', (data) => {
-    const roomId = (data && data.roomId) ? data.roomId : socket.roomId;
-    const username = socket.username;
-    if (roomId && rooms[roomId]) {
-      rooms[roomId] = rooms[roomId].filter(u => u !== username);
-      io.to(roomId).emit('user-left', username, rooms[roomId]);
-      io.to(roomId).emit('room-users-update', { users: rooms[roomId] });
-      socket.to(roomId).emit('user-left-room', { userId: socket.id });
-      socket.to(roomId).emit('peer-disconnected', socket.id);
-    }
-    socket.leave(roomId);
   });
 
   socket.on('disconnect', () => {
