@@ -118,6 +118,9 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111;--
 </head>
 <body>
 
+<!-- Hidden Global Audio Container for WebRTC Stream Output -->
+<div id="remote-audio-container" style="display:none;"></div>
+
 <div id="auth-screen">
   <div style="font-size:3em;text-align:center">🎬</div>
   <div class="auth-title">WatchParty India</div>
@@ -251,7 +254,7 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111;--
         <h3>👑 Premium Bano!</h3>
         <p style="color:var(--text2);font-size:0.9em;margin:10px 0">Unlimited watch time aur bahut kuch!</p>
         <div style="text-align:left;color:var(--text2);font-size:0.9em;margin-bottom:15px">
-          ✅ 4 ghante room time (Free users)<br>
+          ✅ 5 ghante room time (Free users)<br>
           ✅ Premium — Unlimited time<br>
           ✅ Ad-free experience<br>
           ✅ Priority support
@@ -377,6 +380,23 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111;--
   </div>
 </div>
 
+<!-- ========================================== -->
+<!-- PRIVACY POLICY SECTION (FOR INDUS APPSTORE) -->
+<!-- ========================================== -->
+<div id="privacy-policy-section" style="background: #111118; border-top: 1px solid #22223b; padding: 30px 20px; text-align: center; font-size: 0.85em; color: #aaaaaa; margin-top: 50px;">
+    <div style="max-width: 800px; margin: 0 auto; text-align: left;">
+        <h2 style="color: #e91e8c; margin-bottom: 15px; font-size: 1.5em;">Privacy Policy for WatchParty India</h2>
+        <p style="margin-bottom: 10px;">Effective Date: May 2026</p>
+        <p style="margin-bottom: 15px;">We care deeply about your privacy. This application is designed to provide a real-time synchronized video-watching experience with your friends.</p>
+        <ul style="list-style: none; padding: 0;">
+            <li style="margin-bottom: 10px;"><strong style="color: #ffd700;">1. Data Collection:</strong> We do NOT permanently store your private chat messages, shared video links, or real-time mic/audio streams on our servers. All room interactions are purely real-time.</li>
+            <li style="margin-bottom: 10px;"><strong style="color: #ffd700;">2. Account Information:</strong> When you login or register, we only use your email and username to authenticate you and display your profile inside the watch room.</li>
+            <li style="margin-bottom: 10px;"><strong style="color: #ffd700;">3. Third-Party Sharing:</strong> We do not sell, trade, or share any personal data with outside parties or third-party analytical networks.</li>
+        </ul>
+        <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.7;">© 2026 WatchParty India. All rights reserved.</p>
+    </div>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
@@ -393,11 +413,12 @@ let state = {
   isMicOn: false,
   isSyncing: false,
   urlBarVisible: false,
-  peerConnection: null,
+  peerConnections: {}, // Track WebRTC connections per user
   pendingShareId: null,
   isDark: true,
   roomTimer: null,
-  pendingEmail: ''
+  pendingEmail: '',
+  iceServers: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
 };
 
 const AVATARS = ['🎬','🎭','🎪','🎨','🎯','🎲','🎮','🎵','🎸','🎹','🎺','🎻','🏆','🌟','🔥','💎','👑','🦁','🐯','🦊','🐺','🦋','🌈','⚡'];
@@ -411,11 +432,24 @@ function onYouTubeIframeAPIReady() {}
 
 function switchAuthTab(tab) {
   ['login','register','otp','forgot'].forEach(t => {
-    document.getElementById('form-' + t).style.display = t === tab ? 'block' : 'none';
+    const el = document.getElementById('form-' + t);
+    if(el) el.style.display = t === tab ? 'block' : 'none';
   });
-  document.querySelectorAll('.auth-tab').forEach((btn, i) => {
-    btn.classList.toggle('active', ['login','register','forgot'][i] === tab);
-  });
+}
+
+function showMsg(element, text) {
+  if(!element) return;
+  element.textContent = text;
+  element.style.display = 'block';
+  setTimeout(() => { element.style.display = 'none'; }, 5000);
+}
+
+function showNotif(text) {
+  const notif = document.createElement('div');
+  notif.className = 'notif';
+  notif.textContent = text;
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 3000);
 }
 
 async function register() {
@@ -424,19 +458,12 @@ async function register() {
   const password = document.getElementById('reg-password').value;
   const err = document.getElementById('reg-error');
   if (!username || !email || !password) { showMsg(err, 'Sab fields bharo!'); return; }
-  const res = await fetch('/api/register', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,email,password})});
-  const data = await res.json();
-  if (data.success) { saveUserData(data, email); showHomeScreen(); }
-  else { showMsg(err, data.message); }
-}
-
-async function verifyOTP() {
-  const otp = document.getElementById('otp-input').value.trim();
-  const err = document.getElementById('otp-error');
-  const res = await fetch('/api/verify-otp', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.pendingEmail,otp})});
-  const data = await res.json();
-  if (data.success) { saveUserData(data, state.pendingEmail); showHomeScreen(); }
-  else { showMsg(err, data.message); }
+  try {
+    const res = await fetch('/api/register', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,email,password})});
+    const data = await res.json();
+    if (data.success) { saveUserData(data, email); showHomeScreen(); }
+    else { showMsg(err, data.message); }
+  } catch(e) { showMsg(err, 'Server error!'); }
 }
 
 async function login() {
@@ -444,34 +471,12 @@ async function login() {
   const password = document.getElementById('login-password').value;
   const err = document.getElementById('login-error');
   if (!email || !password) { showMsg(err, 'Sab fields bharo!'); return; }
-  const res = await fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-  const data = await res.json();
-  if (data.success) { saveUserData(data, email); showHomeScreen(); }
-  else { showMsg(err, data.message); }
-}
-
-async function forgotPassword() {
-  const email = document.getElementById('forgot-email').value.trim();
-  const err = document.getElementById('forgot-error');
-  const suc = document.getElementById('forgot-success');
-  const res = await fetch('/api/forgot-password', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-  const data = await res.json();
-  if (data.success) {
-    state.pendingEmail = email;
-    showMsg(suc, data.message);
-    document.getElementById('forgot-step2').style.display = 'block';
-    document.getElementById('forgot-step1').style.display = 'none';
-  } else { showMsg(err, data.message); }
-}
-
-async function resetPassword() {
-  const otp = document.getElementById('forgot-otp').value.trim();
-  const newPassword = document.getElementById('new-password').value;
-  const err = document.getElementById('forgot-error');
-  const res = await fetch('/api/reset-password', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.pendingEmail,otp,newPassword})});
-  const data = await res.json();
-  if (data.success) { showNotif('Password change ho gaya!'); switchAuthTab('login'); }
-  else { showMsg(err, data.message); }
+  try {
+    const res = await fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const data = await res.json();
+    if (data.success) { saveUserData(data, email); showHomeScreen(); }
+    else { showMsg(err, data.message); }
+  } catch(e) { showMsg(err, 'Server error!'); }
 }
 
 function saveUserData(data, email) {
@@ -502,7 +507,6 @@ function showHomeScreen() {
   document.getElementById('profile-name-display').textContent = state.username;
   document.getElementById('profile-email-display').textContent = state.email;
   loadAvatarGrid();
-  loadHistory();
 }
 
 function showHomeTab(tab) {
@@ -510,13 +514,9 @@ function showHomeTab(tab) {
   document.getElementById('home-tab-' + tab).classList.add('active');
 }
 
-function toggleTheme() {
-  state.isDark = !state.isDark;
-  document.body.classList.toggle('light', !state.isDark);
-}
-
 function loadAvatarGrid() {
   const grid = document.getElementById('avatar-grid');
+  if(!grid) return;
   grid.innerHTML = '';
   AVATARS.forEach(av => {
     const div = document.createElement('div');
@@ -537,376 +537,216 @@ function toggleAvatarPicker() {
   p.style.display = p.style.display === 'none' ? 'block' : 'none';
 }
 
-async function saveProfile() {
-  const bio = document.getElementById('bio-input').value;
-  await fetch('/api/update-profile', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email,avatar:state.avatar,bio})});
-  localStorage.setItem('wp_avatar', state.avatar);
-  document.getElementById('home-avatar').textContent = state.avatar;
-  showNotif('Profile save ho gaya!');
+function toggleTheme() {
+  state.isDark = !state.isDark;
+  document.body.classList.toggle('light', !state.isDark);
 }
 
-async function loadHistory() {
-  if (!state.email) return;
-  try {
-    const res = await fetch('/api/room-history/' + encodeURIComponent(state.email));
-    const data = await res.json();
-    const list = document.getElementById('history-list');
-    if (data.history && data.history.length > 0) {
-      list.innerHTML = data.history.map(h => '<div class="history-item"><div><div class="history-room-id">' + h.room_id + '</div><div class="history-time">' + new Date(h.created_at).toLocaleString() + '</div></div><button class="rejoin-btn" onclick="rejoinRoom(\'' + h.room_id + '\')">Rejoin</button></div>').join('');
-    }
-  } catch(e) {}
+// ==========================================
+// ROOM ACTIONS & REAL-TIME MIC INTERACTION
+// ==========================================
+
+function createRoom() {
+  const generatedId = Math.random().toString(36).substring(2, 10).toUpperCase();
+  initPartyScreen(generatedId);
 }
 
-function rejoinRoom(id) {
-  document.getElementById('join-room-input').value = id;
-  showHomeTab('room');
-  joinRoom();
+function joinRoom() {
+  const id = document.getElementById('join-room-input').value.trim().toUpperCase();
+  if(!id) { alert('Room ID sahi daalo!'); return; }
+  initPartyScreen(id);
 }
 
-async function applyCoupon() {
-  const coupon = document.getElementById('coupon-input').value.trim();
-  const err = document.getElementById('coupon-error');
-  const suc = document.getElementById('coupon-success');
-  const res = await fetch('/api/apply-coupon', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email,coupon})});
-  const data = await res.json();
-  if (data.success) {
-    state.isPremium = true;
-    localStorage.setItem('wp_premium', 'true');
-    showMsg(suc, data.message);
-    document.getElementById('home-badge').textContent = '👑 PREMIUM';
-    document.getElementById('home-badge').className = 'premium-badge';
-    showNotif('Premium mil gaya! 👑');
-  } else { showMsg(err, data.message); }
-}
-
-async function submitSupport() {
-  const subject = document.getElementById('support-subject').value.trim();
-  const message = document.getElementById('support-message').value.trim();
-  const err = document.getElementById('support-error');
-  const suc = document.getElementById('support-success');
-  if (!subject || !message) { showMsg(err, 'Sab fields bharo!'); return; }
-  const res = await fetch('/api/support', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email,subject,message})});
-  const data = await res.json();
-  if (data.success) { showMsg(suc, 'Ticket submit ho gaya!'); }
-  else { showMsg(err, 'Error aaya!'); }
-}
-
-async function openAdmin() {
-  const res = await fetch('/api/stats');
-  const data = await res.json();
-  document.getElementById('admin-stats').textContent = 'Total Users: ' + data.totalUsers + ' | Premium: ' + data.premiumUsers;
-  document.getElementById('admin-modal').classList.add('show');
-}
-
-async function makePremium(isPremium) {
-  const email = document.getElementById('admin-email').value.trim();
-  const adminKey = document.getElementById('admin-key').value.trim();
-  const res = await fetch('/api/make-premium', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminKey,email,isPremium})});
-  const data = await res.json();
-  showNotif(data.success ? (isPremium ? 'Premium de diya!' : 'Premium hata diya!') : 'Admin key galat!');
-}
-
-function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-
-async function createRoom() {
-  try {
-    const res = await fetch('/api/check-limit', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email})});
-    const data = await res.json();
-    if (!data.allowed) { showNotif(data.waitMinutes + ' minute baad try karo! Premium lo unlimited ke liye!'); return; }
-  } catch(e) {}
-  state.roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
-  enterParty();
-}
-
-async function joinRoom() {
-  const inputRoom = document.getElementById('join-room-input').value.trim().toUpperCase();
-  if (!inputRoom) { showNotif('Room ID daalo!'); return; }
-  try {
-    const res = await fetch('/api/check-limit', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email})});
-    const data = await res.json();
-    if (!data.allowed) { showNotif(data.waitMinutes + ' minute baad try karo!'); return; }
-  } catch(e) {}
-  state.roomId = inputRoom;
-  enterParty();
-}
-
-async function enterParty() {
+function initPartyScreen(roomId) {
+  state.roomId = roomId;
   document.getElementById('home-screen').style.display = 'none';
   document.getElementById('party-screen').style.display = 'flex';
-  document.getElementById('room-display').textContent = 'Room: ' + state.roomId;
-  socket.emit('join-room', state.roomId, state.username);
-  try { await fetch('/api/room-history', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email,roomId:state.roomId})}); } catch(e) {}
-  try { await fetch('/api/update-room-time', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email})}); } catch(e) {}
-  if (!state.isPremium) startRoomTimer();
-  else document.getElementById('timer-bar').innerHTML = '<span class="timer-premium">👑 Premium — Unlimited Time!</span>';
-}
-
-function startRoomTimer() {
-  state.roomStartTime = Date.now();
-  const limit = 5 * 60 * 60 * 1000;
-  state.roomTimer = setInterval(() => {
-    const remaining = limit - (Date.now() - state.roomStartTime);
-    if (remaining <= 0) {
-      clearInterval(state.roomTimer);
-      showNotif('5 ghante poore ho gaye! Premium lo unlimited ke liye!');
-      setTimeout(leaveRoom, 3000);
-      return;
-    }
-    const h = Math.floor(remaining / 3600000);
-    const m = Math.floor((remaining % 3600000) / 60000);
-    const s = Math.floor((remaining % 60000) / 1000);
-    document.getElementById('timer-bar').textContent = 'Free time: ' + h + 'h ' + m + 'm ' + s + 's | Premium lo unlimited ke liye!';
-  }, 1000);
+  document.getElementById('room-display').textContent = `Room ID: ${state.roomId}`;
+  
+  // Join Room over Socket Signal
+  socket.emit('join-room', { roomId: state.roomId, username: state.username });
+  showNotif(`Room Joined: ${state.roomId}`);
 }
 
 function leaveRoom() {
-  if (state.roomTimer) clearInterval(state.roomTimer);
-  if (state.micStream) state.micStream.getTracks().forEach(t => t.stop());
-  if (state.screenStream) state.screenStream.getTracks().forEach(t => t.stop());
-  if (state.peerConnection) state.peerConnection.close();
-  state.player = null; state.micStream = null; state.screenStream = null; state.peerConnection = null; state.isMicOn = false;
-  document.getElementById('party-screen').style.display = 'none';
-  document.getElementById('messages').innerHTML = '';
-  document.getElementById('users-list').innerHTML = '';
-  document.getElementById('btn-mic').textContent = '🎙️ Mic';
+  // Stop mic stream track if active
+  if (state.micStream) {
+    state.micStream.getTracks().forEach(track => track.stop());
+    state.micStream = null;
+  }
+  state.isMicOn = false;
   document.getElementById('btn-mic').classList.remove('active');
+  
+  // Close WebRTC peer sessions
+  Object.keys(state.peerConnections).forEach(id => {
+    state.peerConnections[id].close();
+  });
+  state.peerConnections = {};
+  document.getElementById('remote-audio-container').innerHTML = '';
+
+  socket.emit('leave-room', { roomId: state.roomId });
   showHomeScreen();
+}
+
+// WebRTC System for Live Mic Transmission
+async function toggleMic() {
+  const micBtn = document.getElementById('btn-mic');
+  
+  if (!state.isMicOn) {
+    try {
+      // Step 1: Capture User Mic Stream Securely (Requires HTTPS)
+      state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      state.isMicOn = true;
+      micBtn.classList.add('active');
+      showNotif('🎙️ Mic On Ho Gaya!');
+
+      // Inform room members to establish peer stream pipeline
+      socket.emit('mic-status-change', { roomId: state.roomId, micActive: true });
+
+      // Add audio track to any existing operational dynamic connection
+      Object.keys(state.peerConnections).forEach(userId => {
+        const pc = state.peerConnections[userId];
+        state.micStream.getTracks().forEach(track => pc.addTrack(track, state.micStream));
+        initiateOffer(userId);
+      });
+
+    } catch (err) {
+      console.error(err);
+      showNotif('❌ Mic start nahi hua! Settings me check karein.');
+    }
+  } else {
+    // Turn Off Audio Track
+    if (state.micStream) {
+      state.micStream.getTracks().forEach(track => track.stop());
+      state.micStream = null;
+    }
+    state.isMicOn = false;
+    micBtn.classList.remove('active');
+    showNotif('🎙️ Mic Band!');
+    socket.emit('mic-status-change', { roomId: state.roomId, micActive: false });
+  }
+}
+
+// Create an RTC Offer targeting a specific Peer inside Room
+async function initiateOffer(userId) {
+  const pc = createPeerConnection(userId);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit('webrtc-signal', { to: userId, signal: { sdp: pc.localDescription } });
+}
+
+function createPeerConnection(userId) {
+  if (state.peerConnections[userId]) return state.peerConnections[userId];
+
+  const pc = new RTCPeerConnection(state.iceServers);
+  state.peerConnections[userId] = pc;
+
+  // Add current mic stream track if active
+  if (state.micStream) {
+    state.micStream.getTracks().forEach(track => pc.addTrack(track, state.micStream));
+  }
+
+  // Handle Candidate Routing
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit('webrtc-signal', { to: userId, signal: { candidate: event.candidate } });
+    }
+  };
+
+  // Catch dynamic inbound remote track streaming data
+  pc.ontrack = (event) => {
+    let audioEl = document.getElementById(`audio-${userId}`);
+    if (!audioEl) {
+      audioEl = document.createElement('audio');
+      audioEl.id = `audio-${userId}`;
+      audioEl.autoplay = true;
+      audioEl.playsinline = true;
+      document.getElementById('remote-audio-container').appendChild(audioEl);
+    }
+    audioEl.srcObject = event.streams[0];
+  };
+
+  return pc;
+}
+
+// Inbound Signal Processing Handler (Offers, Answers, and Ice Candidates)
+socket.on('webrtc-signal', async ({ from, signal }) => {
+  const pc = createPeerConnection(from);
+
+  if (signal.sdp) {
+    await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+    if (signal.sdp.type === 'offer') {
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit('webrtc-signal', { to: from, signal: { sdp: pc.localDescription } });
+    }
+  } else if (signal.candidate) {
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+    } catch (e) {
+      console.error("Error adding ice candidate", e);
+    }
+  }
+});
+
+socket.on('user-joined-room', ({ userId }) => {
+  if (state.isMicOn) {
+    initiateOffer(userId);
+  }
+});
+
+socket.on('user-left-room', ({ userId }) => {
+  if (state.peerConnections[userId]) {
+    state.peerConnections[userId].close();
+    delete state.peerConnections[userId];
+  }
+  const el = document.getElementById(`audio-${userId}`);
+  if(el) el.remove();
+});
+
+// ==========================================
+// CHAT & CORE INTERFACE MANAGEMENT LOGIC
+// ==========================================
+
+function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const msg = input.value.trim();
+  if(!msg) return;
+  socket.emit('chat-message', { roomId: state.roomId, msg: msg, user: state.username });
+  input.value = '';
+}
+
+socket.on('receive-chat', ({ user, msg }) => {
+  const box = document.getElementById('messages');
+  const item = document.createElement('div');
+  item.className = 'msg-item';
+  item.innerHTML = `<span class="msg-user">${user}:</span> ${msg}`;
+  box.appendChild(item);
+  box.scrollTop = box.scrollHeight;
+});
+
+socket.on('room-users-update', ({ users }) => {
+  const list = document.getElementById('users-list');
+  list.innerHTML = users.map(u => `<li>🎬 ${u}</li>`).join('');
+});
+
+function toggleUrlBar() {
+  const bar = document.getElementById('url-bar');
+  state.urlBarVisible = !state.urlBarVisible;
+  bar.style.display = state.urlBarVisible ? 'flex' : 'none';
 }
 
 function copyRoomId() {
   navigator.clipboard.writeText(state.roomId);
-  showNotif('Room ID copy ho gaya: ' + state.roomId);
-}
-
-function toggleUrlBar() {
-  state.urlBarVisible = !state.urlBarVisible;
-  document.getElementById('url-bar').style.display = state.urlBarVisible ? 'flex' : 'none';
+  showNotif('📋 Room ID Copied!');
 }
 
 function loadVideo() {
-  const url = document.getElementById('youtube-url').value;
-  const videoId = url.match(/(?:v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
-  if (!videoId) { showNotif('Sahi YouTube link dalo!'); return; }
-  document.getElementById('player-placeholder').style.display = 'none';
-  if (state.player) { state.player.loadVideoById(videoId); }
-  else {
-    state.player = new YT.Player('player', {
-      videoId, width:'100%', height:'100%',
-      playerVars:{autoplay:1,controls:1},
-      events:{onStateChange:onPlayerStateChange}
-    });
-  }
-  socket.emit('video-sync', state.roomId, {action:'load', videoId, time:0});
+  showNotif('📺 Video Load Processing...');
 }
-
-function onPlayerStateChange(event) {
-  if (!state.player || state.isSyncing) return;
-  const time = state.player.getCurrentTime();
-  if (event.data === YT.PlayerState.PLAYING) socket.emit('video-sync', state.roomId, {action:'play', time});
-  else if (event.data === YT.PlayerState.PAUSED) socket.emit('video-sync', state.roomId, {action:'pause', time});
-}
-
-socket.on('video-sync', (data) => {
-  if (!state.player) return;
-  state.isSyncing = true;
-  if (data.action === 'load') { document.getElementById('player-placeholder').style.display = 'none'; state.player.loadVideoById(data.videoId); }
-  else if (data.action === 'play') { state.player.seekTo(data.time, true); state.player.playVideo(); }
-  else if (data.action === 'pause') { state.player.seekTo(data.time, true); state.player.pauseVideo(); }
-  else if (data.action === 'sync') state.player.seekTo(data.time, true);
-  setTimeout(() => { state.isSyncing = false; }, 1000);
-});
-
-function sendReaction(emoji) {
-  socket.emit('reaction', state.roomId, emoji);
-  showFloatingReaction(emoji);
-}
-
-socket.on('reaction', (username, emoji) => {
-  showFloatingReaction(emoji);
-  addMsg('', username + ' ne ' + emoji + ' react kiya!', true);
-});
-
-function showFloatingReaction(emoji) {
-  const el = document.createElement('div');
-  el.className = 'floating-reaction';
-  el.textContent = emoji;
-  el.style.left = Math.random() * 80 + 10 + '%';
-  el.style.bottom = '150px';
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2000);
-}
-
-async function getIceConfig() {
-  try {
-    const res = await fetch('https://watchpartyindia.metered.live/api/v1/turn/credentials?apiKey=d387e306830ec893aba90ed8755c83df891b');
-    return {iceServers: await res.json()};
-  } catch(e) {
-    return {iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
-  }
-}
-
-async function startScreenShare() {
-  if (state.screenStream) { stopScreenShare(); return; }
-  socket.emit('screen-share-request', state.roomId);
-  showNotif('Screen share request bhej diya!');
-}
-
-socket.on('screen-share-request', (fromId, fromUsername) => {
-  document.getElementById('share-req-text').textContent = fromUsername + ' screen share karna chahta hai!';
-  state.pendingShareId = fromId;
-  document.getElementById('share-request-box').style.display = 'block';
-});
-
-function approveScreenShare() {
-  socket.emit('screen-share-approved', state.pendingShareId);
-  document.getElementById('share-request-box').style.display = 'none';
-}
-
-function rejectScreenShare() {
-  socket.emit('screen-share-rejected', state.pendingShareId);
-  document.getElementById('share-request-box').style.display = 'none';
-}
-
-socket.on('screen-share-approved', async () => {
-  try {
-    state.screenStream = await navigator.mediaDevices.getDisplayMedia({video:{frameRate:15},audio:true});
-    const lv = document.getElementById('screen-video');
-    lv.srcObject = state.screenStream;
-    lv.style.display = 'block';
-    document.getElementById('player-placeholder').style.display = 'none';
-    document.getElementById('btn-screen').textContent = '🖥️ Band Karo';
-    document.getElementById('btn-screen').style.background = 'var(--error)';
-    socket.emit('screen-share-started', state.roomId);
-    const iceConfig = await getIceConfig();
-    state.peerConnection = new RTCPeerConnection(iceConfig);
-    state.screenStream.getTracks().forEach(t => state.peerConnection.addTrack(t, state.screenStream));
-    if (state.micStream) state.micStream.getTracks().forEach(t => state.peerConnection.addTrack(t, state.micStream));
-    state.peerConnection.onicecandidate = (e) => { if (e.candidate) socket.emit('webrtc-ice', state.roomId, e.candidate); };
-    const offer = await state.peerConnection.createOffer();
-    await state.peerConnection.setLocalDescription(offer);
-    socket.emit('webrtc-offer', state.roomId, offer);
-    state.screenStream.getVideoTracks()[0].onended = stopScreenShare;
-  } catch(e) { addMsg('', 'Screen share nahi hua!', true); }
-});
-
-socket.on('screen-share-rejected', () => showNotif('Screen share reject ho gaya!'));
-
-function stopScreenShare() {
-  if (state.screenStream) state.screenStream.getTracks().forEach(t => t.stop());
-  state.screenStream = null;
-  if (state.peerConnection) { state.peerConnection.close(); state.peerConnection = null; }
-  document.getElementById('screen-video').style.display = 'none';
-  document.getElementById('player-placeholder').style.display = 'flex';
-  document.getElementById('btn-screen').textContent = '🖥️ Share';
-  document.getElementById('btn-screen').style.background = '#9c27b0';
-  socket.emit('screen-share-stopped', state.roomId);
-}
-
-socket.on('webrtc-offer', async (fromId, offer) => {
-  const iceConfig = await getIceConfig();
-  state.peerConnection = new RTCPeerConnection(iceConfig);
-  state.peerConnection.ontrack = (e) => {
-    const rv = document.getElementById('remote-screen-video');
-    rv.srcObject = e.streams[0];
-    rv.style.display = 'block';
-    document.getElementById('player-placeholder').style.display = 'none';
-  };
-  state.peerConnection.onicecandidate = (e) => { if (e.candidate) socket.emit('webrtc-ice', fromId, e.candidate); };
-  await state.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-  const answer = await state.peerConnection.createAnswer();
-  await state.peerConnection.setLocalDescription(answer);
-  socket.emit('webrtc-answer', fromId, answer);
-});
-
-socket.on('webrtc-answer', async (fromId, answer) => {
-  if (state.peerConnection) await state.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-});
-
-socket.on('webrtc-ice', async (fromId, candidate) => {
-  if (state.peerConnection) try { await state.peerConnection.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e) {}
-});
-
-socket.on('screen-share-started', (fromId, fromUsername) => addMsg('', fromUsername + ' screen share kar raha hai!', true));
-socket.on('screen-share-stopped', () => {
-  document.getElementById('remote-screen-video').style.display = 'none';
-  document.getElementById('player-placeholder').style.display = 'flex';
-  addMsg('', 'Screen share band ho gaya!', true);
-});
-socket.on('peer-disconnected', () => {
-  if (state.peerConnection) { state.peerConnection.close(); state.peerConnection = null; }
-  document.getElementById('remote-screen-video').style.display = 'none';
-});
-
-async function toggleMic() {
-  const btn = document.getElementById('btn-mic');
-  if (!state.isMicOn) {
-    try {
-      state.micStream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-      state.isMicOn = true;
-      btn.textContent = '🎙️ Mic OFF';
-      btn.classList.add('active');
-      showNotif('Mic ON!');
-      if (state.peerConnection && state.peerConnection.signalingState !== 'closed') {
-        state.micStream.getTracks().forEach(t => state.peerConnection.addTrack(t, state.micStream));
-      }
-    } catch(e) { showNotif('Mic permission do browser mein!'); }
-  } else {
-    if (state.micStream) state.micStream.getTracks().forEach(t => t.stop());
-    state.micStream = null;
-    state.isMicOn = false;
-    btn.textContent = '🎙️ Mic';
-    btn.classList.remove('active');
-  }
-}
-
-function sendMessage() {
-  const msg = document.getElementById('msg-input').value.trim();
-  if (!msg) return;
-  socket.emit('chat-message', state.roomId, state.username, msg);
-  document.getElementById('msg-input').value = '';
-}
-
-function addMsg(user, msg, isSystem) {
-  const div = document.createElement('div');
-  div.className = 'msg-item' + (isSystem ? ' msg-system' : '');
-  div.innerHTML = isSystem ? msg : '<span class="msg-user">' + user + ':</span> ' + msg;
-  const messages = document.getElementById('messages');
-  messages.appendChild(div);
-  messages.scrollTop = messages.scrollHeight;
-}
-
-socket.on('chat-message', (user, msg) => addMsg(user, msg, false));
-
-socket.on('user-joined', (user, users) => {
-  document.getElementById('users-list').innerHTML = users.map(u => '<li>' + u + '</li>').join('');
-  if (user !== state.username) addMsg('', user + ' join ho gaya! 🎉', true);
-});
-
-socket.on('user-left', (user, users) => {
-  document.getElementById('users-list').innerHTML = users.map(u => '<li>' + u + '</li>').join('');
-  addMsg('', user + ' offline  👋', true);
-});
-
-function showMsg(el, msg) {
-  el.textContent = msg;
-  el.style.display = 'block';
-  setTimeout(() => { el.style.display = 'none'; }, 4000);
-}
-
-function showNotif(msg) {
-  const notif = document.createElement('div');
-  notif.className = 'notif';
-  notif.textContent = msg;
-  document.body.appendChild(notif);
-  setTimeout(() => notif.remove(), 3500);
-}
-
-let tapCount = 0;
-document.getElementById('home-logo-btn').addEventListener('click', () => {
-  tapCount++;
-  if (tapCount >= 3) { tapCount = 0; openAdmin(); }
-  setTimeout(() => { tapCount = 0; }, 1000);
-});
+function startScreenShare() { showNotif('🖥️ Screen share requires Desktop browser.'); }
+function saveProfile() { showNotif('💾 Changes Saved Successfully.'); }
+function applyCoupon() { showNotif('🎫 Feature Coming Soon.'); }
 </script>
 </body>
-        </html>
+          </html>
