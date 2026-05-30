@@ -27,7 +27,7 @@
             <p class="text-xs text-gray-400">Dosto ke sath YouTube aur multi-platform videos dekho ek sath</p>
         </div>
 
-        <div class="flex border-b border-gray-800 text-sm font-semibold">
+        <div id="auth-tabs" class="flex border-b border-gray-800 text-sm font-semibold">
             <button id="tab-login" onclick="toggleAuthForm('login')" class="flex-1 pb-2 border-b-2 border-pink-500 text-pink-500">Login</button>
             <button id="tab-register" onclick="toggleAuthForm('register')" class="flex-1 pb-2 border-b-2 border-transparent text-gray-400">Register</button>
         </div>
@@ -46,9 +46,12 @@
         </div>
 
         <div id="lobby-panel" class="pt-4 border-t border-gray-800 space-y-3 hidden">
-            <div class="text-xs font-bold text-pink-400 uppercase tracking-wider">Room Control Center</div>
+            <div class="flex justify-between items-center mb-1">
+                <div class="text-xs font-bold text-pink-400 uppercase tracking-wider">Welcome, <span id="welcome-user" class="text-white">User</span></div>
+                <button onclick="handleLogout()" class="text-xs text-red-400 hover:underline"><i class="fa-solid fa-power-off"></i> Logout</button>
+            </div>
             <div class="flex gap-2">
-                <input type="text" id="join-room-id" placeholder="Enter Room ID" class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono uppercase tracking-wider focus:outline-none focus:border-pink-500">
+                <input type="text" id="join-room-id" placeholder="ENTER ROOM ID" class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono uppercase tracking-wider focus:outline-none focus:border-pink-500">
                 <button onclick="enterPartyRoom('join')" class="bg-purple-600 hover:bg-purple-700 px-4 rounded text-xs font-bold uppercase transition">Join Room</button>
             </div>
             <div class="relative flex py-2 items-center">
@@ -85,7 +88,7 @@
         </div>
 
         <div class="flex gap-2">
-            <input type="text" id="video-url-input" placeholder="YouTube, Vimeo, Twitch ya MP4 Video Link paste karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500">
+            <input type="text" id="video-url-input" placeholder="YouTube, Vimeo ya MP4 Video Link paste karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500">
             <button onclick="playNewVideoFromInput()" class="bg-red-600 hover:bg-red-700 px-5 rounded text-white flex items-center justify-center transition">
                 <i class="fa-solid fa-play"></i>
             </button>
@@ -98,11 +101,13 @@
             <div id="player-container" class="w-full h-full">
                 <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
                     <i class="fa-solid fa-film text-4xl mb-2"></i>
-                    <p class="font-semibold text-sm text-gray-300">YouTube ya Screen Share karo</p>
-                    <p class="text-xs text-gray-500 mt-1">Koi bhi online link lekar upar play karo</p>
+                    <p class="font-semibold text-sm text-gray-300">YouTube ya Video Link Share Karo</p>
+                    <p class="text-xs text-gray-500 mt-1">Koi bhi online stream URL lekar upar play karo</p>
                 </div>
             </div>
         </div>
+
+        <div id="remote-audios" class="hidden"></div>
 
         <div class="flex justify-between bg-gray-900/50 p-2 rounded-lg border border-gray-800">
             <button onclick="sendReaction('❤️')" class="text-xl transform hover:scale-125 transition">❤️</button>
@@ -128,24 +133,28 @@
                 </h3>
                 <div id="messages" class="mb-2"></div>
                 <div class="flex gap-2 border-t border-gray-800 pt-2">
-                    <input type="text" id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="Kuch likho..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-pink-500">
+                    <input type="text" id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="Kuch chat karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-pink-500">
                     <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 px-4 rounded text-xs font-bold text-white uppercase transition">Send</button>
                 </div>
             </div>
         </div>
     </div>
 
+
     <script>
         let socket;
+        const peers = {}; // Holds Active RTCPeerConnections
         const state = {
             roomId: '',
-            username: '',
-            token: '',
+            username: localStorage.getItem('wp_username') || '',
+            token: localStorage.getItem('wp_token') || '',
             micActive: false,
             localStream: null
         };
 
-        // UI View toggler logic
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        // UI Auth State Toggle Switcher
         function toggleAuthForm(mode) {
             const loginF = document.getElementById('login-form');
             const regF = document.getElementById('register-form');
@@ -163,53 +172,78 @@
             }
         }
 
-        // BACKEND API CONNECTORS
+        // DATABASE LOGIN FLOW (Hooks into your PostgreSQL backend routers)
         async function handleLogin() {
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
 
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email, password: pass })
-            });
-            const data = await res.json();
-            if(data.success) {
-                state.username = data.username;
-                state.token = data.token;
-                document.getElementById('login-form').classList.add('hidden');
-                document.getElementById('register-form').classList.add('hidden');
-                document.getElementById('lobby-panel').classList.remove('hidden');
-                alert("Login successful! Choose room options below.");
-            } else {
-                alert(data.message);
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password: pass })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    state.username = data.username;
+                    state.token = data.token;
+                    
+                    localStorage.setItem('wp_username', data.username);
+                    localStorage.setItem('wp_token', data.token);
+
+                    showLobbyView();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                alert("Database connect nahi ho paya!");
             }
         }
 
+        // DATABASE REGISTER FLOW
         async function handleRegister() {
             const user = document.getElementById('reg-user').value;
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
 
-            const res = await fetch('/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: user, email: email, password: pass })
-            });
-            const data = await res.json();
-            if(data.success) {
-                state.username = data.username;
-                state.token = data.token;
-                document.getElementById('login-form').classList.add('hidden');
-                document.getElementById('register-form').classList.add('hidden');
-                document.getElementById('lobby-panel').classList.remove('hidden');
-                alert("Registration successful!");
-            } else {
-                alert(data.message);
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, email, password: pass })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    state.username = data.username;
+                    state.token = data.token;
+
+                    localStorage.setItem('wp_username', data.username);
+                    localStorage.setItem('wp_token', data.token);
+
+                    showLobbyView();
+                    alert("Account Created!");
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                alert("Registration failed!");
             }
         }
 
-        // INITIALIZE SOCKET & ENTER WATCHPARTY ROOM 
+        function showLobbyView() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('auth-tabs').classList.add('hidden');
+            document.getElementById('lobby-panel').classList.remove('hidden');
+            document.getElementById('welcome-user').innerText = state.username;
+        }
+
+        function handleLogout() {
+            localStorage.clear();
+            window.location.reload();
+        }
+
+        // SOCKET INIT & SYSTEM WORKSPACE ACTIVATOR
         function enterPartyRoom(action) {
             if(action === 'create') {
                 state.roomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
@@ -222,9 +256,9 @@
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('party-room-screen').classList.remove('hidden');
             document.body.className = "p-4"; 
-
             document.getElementById('room-display-id').innerText = state.roomId;
 
+            // Connect Live WebSocket Channels
             socket = io();
             socket.emit('join-room', { roomId: state.roomId, username: state.username });
 
@@ -232,7 +266,79 @@
         }
 
         // ===================================================
-        // CORE INTEGRATED FEATURE LOGIC (Multi-Video, Chat, Mic)
+        // WebRTC AUDIO ENGINE IMPLEMENTATION (Voice Pipeline)
+        // ===================================================
+        async function toggleMicPipeline() {
+            const btn = document.getElementById('mic-toggle-btn');
+            if (!state.micActive) {
+                try {
+                    state.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    state.micActive = true;
+                    btn.innerHTML = `<i class="fa-solid fa-microphone text-green-400"></i> Mic On`;
+                    btn.className = "bg-green-700 hover:bg-green-800 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
+                    
+                    // Inject audio tracks into peer mesh loops
+                    state.localStream.getAudioTracks().forEach(track => {
+                        Object.values(peers).forEach(pc => {
+                            pc.addTrack(track, state.localStream);
+                        });
+                    });
+
+                    socket.emit('mic-status-change', { roomId: state.roomId, micActive: true });
+                } catch (err) {
+                    alert("Mic active nahi hua! Please permissions allow karein.");
+                }
+            } else {
+                if (state.localStream) {
+                    state.localStream.getTracks().forEach(t => t.stop());
+                }
+                state.micActive = false;
+                btn.innerHTML = `<i class="fa-solid fa-microphone-slash"></i> Mic Off`;
+                btn.className = "bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
+                socket.emit('mic-status-change', { roomId: state.roomId, micActive: false });
+            }
+        }
+
+        function initPeerConnection(targetUserId, initiateOffer = false) {
+            if (peers[targetUserId]) return peers[targetUserId];
+
+            const pc = new RTCPeerConnection(rtcConfig);
+            peers[targetUserId] = pc;
+
+            if (state.localStream) {
+                state.localStream.getAudioTracks().forEach(track => pc.addTrack(track, state.localStream));
+            }
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('webrtc-ice', targetUserId, event.candidate);
+                }
+            };
+
+            pc.ontrack = (event) => {
+                let audioEl = document.getElementById(`audio-${targetUserId}`);
+                if (!audioEl) {
+                    audioEl = document.createElement('audio');
+                    audioEl.id = `audio-${targetUserId}`;
+                    audioEl.autoplay = true;
+                    document.getElementById('remote-audios').appendChild(audioEl);
+                }
+                audioEl.srcObject = event.streams[0];
+            };
+
+            if (initiateOffer) {
+                pc.createOffer().then(offer => {
+                    return pc.setLocalDescription(offer);
+                }).then(() => {
+                    socket.emit('webrtc-offer', targetUserId, pc.localDescription);
+                });
+            }
+
+            return pc;
+        }
+
+        // ===================================================
+        // STREAM CONTROL COMPONENT (YouTube/Vimeo Parsing)
         // ===================================================
         function parseVideoId(url) {
             if (!url) return null;
@@ -258,7 +364,7 @@
                 renderActivePlayer(mediaMeta);
                 urlInput.value = '';
             } else {
-                alert("Bhai, Video link correct nahi hai!");
+                alert("URL format sahi nahi hai!");
             }
         }
 
@@ -287,29 +393,11 @@
             input.value = '';
         }
 
-        async function toggleMicPipeline() {
-            const btn = document.getElementById('mic-toggle-btn');
-            if (!state.micActive) {
-                try {
-                    state.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                    state.micActive = true;
-                    btn.innerHTML = `<i class="fa-solid fa-microphone text-green-400"></i> Mic On`;
-                    btn.className = "bg-green-700 hover:bg-green-800 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
-                    socket.emit('mic-status-change', { roomId: state.roomId, micActive: true });
-                } catch (err) {
-                    alert("Mic open nahi hua bhai, permissions allow karo!");
-                }
-            } else {
-                if (state.localStream) state.localStream.getTracks().forEach(t => t.stop());
-                state.micActive = false;
-                btn.innerHTML = `<i class="fa-solid fa-microphone-slash"></i> Mic Off`;
-                btn.className = "bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2";
-                socket.emit('mic-status-change', { roomId: state.roomId, micActive: false });
-            }
-        }
-
         function sendReaction(emoji) { socket.emit('reaction', state.roomId, emoji); }
 
+        // ===================================================
+        // CORE SOCKET CHANNEL EVENT LISTENERS ENGINE
+        // ===================================================
         function setupSocketListeners() {
             socket.on('receive-chat', ({ user, msg }) => {
                 const box = document.getElementById('messages');
@@ -327,20 +415,76 @@
                 }
             });
 
-            socket.on('user-joined', (u, roomUsers) => {
-                const list = document.getElementById('user-list'); list.innerHTML = '';
-                roomUsers.forEach(user => {
-                    list.innerHTML += `<div class="flex items-center gap-2"><i class="fa-solid fa-ticket text-pink-500"></i> <span>${user}</span></div>`;
+            // WebRTC Core Signaling Protocols Handles
+            socket.on('new-peer', (targetUserId) => {
+                initPeerConnection(targetUserId, true);
+            });
+
+            socket.on('webrtc-offer', (fromId, offer) => {
+                const pc = initPeerConnection(fromId, false);
+                pc.setRemoteDescription(new RTCSessionDescription(offer)).then(() => {
+                    return pc.createAnswer();
+                }).then(answer => {
+                    return pc.setLocalDescription(answer);
+                }).then(() => {
+                    socket.emit('webrtc-answer', fromId, pc.localDescription);
                 });
             });
 
-            socket.on('user-left', (u, roomUsers) => {
-                const list = document.getElementById('user-list'); list.innerHTML = '';
-                roomUsers.forEach(user => {
-                    list.innerHTML += `<div class="flex items-center gap-2"><i class="fa-solid fa-ticket text-pink-500"></i> <span>${user}</span></div>`;
-                });
+            socket.on('webrtc-answer', (fromId, answer) => {
+                const pc = peers[fromId];
+                if (pc) pc.setRemoteDescription(new RTCSessionDescription(answer));
             });
+
+            socket.on('webrtc-ice', (fromId, candidate) => {
+                const pc = peers[fromId];
+                if (pc) pc.addIceCandidate(new RTCIceCandidate(candidate));
+            });
+
+            socket.on('peer-disconnected', (targetUserId) => {
+                if (peers[targetUserId]) {
+                    peers[targetUserId].close();
+                    delete peers[targetUserId];
+                }
+                const audioEl = document.getElementById(`audio-${targetUserId}`);
+                if (audioEl) audioEl.remove();
+            });
+
+            // Real-Time Online Status Generator Module
+            function updateOnlineUsersList(roomUsers) {
+                const list = document.getElementById('user-list'); 
+                list.innerHTML = '';
+                if (!roomUsers || roomUsers.length === 0) {
+                    list.innerHTML = `<div class="text-xs text-gray-500 italic p-1">Lobby empty...</div>`;
+                    return;
+                }
+                roomUsers.forEach(user => {
+                    list.innerHTML += `
+                        <div class="flex items-center justify-between p-1 rounded hover:bg-gray-800/40 transition">
+                            <div class="flex items-center gap-2">
+                                <span class="relative flex h-2 w-2">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                <span class="text-sm font-medium text-gray-200">${user}</span>
+                            </div>
+                            <span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full font-mono uppercase tracking-wider">Online</span>
+                        </div>
+                    `;
+                });
+            }
+
+            socket.on('user-joined', (u, roomUsers) => { updateOnlineUsersList(roomUsers); });
+            socket.on('user-left', (u, roomUsers) => { updateOnlineUsersList(roomUsers); });
+            socket.on('room-users-update', (data) => { if(data && data.users) updateOnlineUsersList(data.users); });
         }
+
+        // DOM Loader Session Check (Refresh Lock Engine)
+        window.addEventListener('DOMContentLoaded', () => {
+            if (state.token && state.username) {
+                showLobbyView();
+            }
+        });
     </script>
 </body>
-    </html>
+</html>
