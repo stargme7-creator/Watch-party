@@ -2,6 +2,40 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+const path = require('path');
+
+// Body parsing middleware (login/register data ke liye)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 🔥 FIXED: Isse public folder ki files automatically browser me load hongi
+app.use(express.static(path.join(__dirname, 'public')));
+
+// MAIN ROUTE: Jab koi site khole toh seedhe index.html mile
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Dummy Auth APIs (Agar tumhari pehle se bani hain toh unhe use karna, nahi toh ye basic validation handle karegi)
+app.post('/api/login', (req, res) => {
+    const { email, password } = req.body;
+    if(email && password) {
+        // Username nikalne ke liye email ka pehla part use kar rahe hain
+        const username = email.split('@')[0];
+        res.json({ success: true, username: username, token: 'dummy-token-' + Date.now() });
+    } else {
+        res.json({ success: false, message: 'Email aur Password zaroori hai!' });
+    }
+});
+
+app.post('/api/register', (req, res) => {
+    const { username, email, password } = req.body;
+    if(username && email && password) {
+        res.json({ success: true, username: username, token: 'dummy-token-' + Date.now() });
+    } else {
+        res.json({ success: false, message: 'Saari fields bharna zaroori hai!' });
+    }
+});
 
 // Rooms ka live data track karne ke liye object
 const activeRooms = {}; 
@@ -11,7 +45,6 @@ io.on('connection', (socket) => {
 
     // 1. JOIN ROOM SYSTEM (WITH CLEANUP LOGIC)
     socket.on('join-room', ({ roomId, username }) => {
-        // Agar room pehle se database/memory me nahi hai toh banao
         if (!activeRooms[roomId]) {
             activeRooms[roomId] = { users: [], currentVideo: null };
         }
@@ -19,7 +52,6 @@ io.on('connection', (socket) => {
         // BACKEND FIX: Agar naye connection se pehle wahi username bhatka hua hai, toh use saaf karo
         activeRooms[roomId].users = activeRooms[roomId].users.filter(u => u.username !== username);
         
-        // Naya socket instance structure pool me push karo
         const userObj = { id: socket.id, username: username };
         activeRooms[roomId].users.push(userObj);
 
@@ -45,14 +77,12 @@ io.on('connection', (socket) => {
     // 2. VIDEO SYNC ENGINE (PLAY/PAUSE/SEEK)
     socket.on('video-sync', (roomId, data) => {
         if (activeRooms[roomId]) {
-            // Server par video ki state update rakho (Action aur Time packet)
             if (data.action === 'loadNewVideo') {
                 activeRooms[roomId].currentVideo = data;
             } else if (activeRooms[roomId].currentVideo) {
                 activeRooms[roomId].currentVideo.action = data.action;
                 activeRooms[roomId].currentVideo.time = data.time;
             }
-            // Tumhare alawa room ke baaki dosto ko action broadcast karo
             socket.to(roomId).emit('video-sync', data);
         }
     });
@@ -63,7 +93,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('reaction', (roomId, emoji) => {
-        socket.to(roomId).emit('receive-reaction', emoji); // Custom logic handling
+        socket.to(roomId).emit('receive-reaction', emoji);
     });
 
     // 4. WebRTC VOICE SIGNALING CHANNELS
@@ -82,19 +112,13 @@ io.on('connection', (socket) => {
     // 5. CLEANUP ON DISCONNECT / LEAVE ROOM
     const handleUserLeave = (socketInstance) => {
         const rId = socketInstance.roomId;
-        const uName = socketInstance.username;
-
         if (rId && activeRooms[rId]) {
-            // User ko active array list se saaf karo
             activeRooms[rId].users = activeRooms[rId].users.filter(u => u.id !== socketInstance.id);
-            
-            // Sabhi dosto ko notification do
             socketInstance.to(rId).emit('peer-disconnected', socketInstance.id);
             
             const usersList = activeRooms[rId].users.map(u => u.username);
             io.to(rId).emit('room-users-update', { users: usersList });
 
-            // Agar room poora khali ho jaye toh memory clean karo
             if (activeRooms[rId].users.length === 0) {
                 delete activeRooms[rId];
             }
