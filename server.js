@@ -3,41 +3,112 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
+const { Pool } = require('pg'); // Postgres library
 
-// Body parsing middleware (login/register data ke liye)
+// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 🔥 FIXED: Isse public folder ki files automatically browser me load hongi
+// Public folder serving
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MAIN ROUTE: Jab koi site khole toh seedhe index.html mile
+// 🗄️ REAL POSTGRES CONNECTION CONFIGURATION
+// Railway automatically Environment Variables provide karta hai (DATABASE_URL)
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false // Railway Postgres ke liye zaroori hai
+    }
+});
+
+// App chalu hote hi check karega ki users table hai ya nahi, nahi toh bana dega
+const initDb = async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        console.log("Postgres Tables setup successfully!");
+    } catch (err) {
+        console.error("Database table creation error:", err);
+    }
+};
+initDb();
+
+// MAIN ROUTE
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Dummy Auth APIs (Agar tumhari pehle se bani hain toh unhe use karna, nahi toh ye basic validation handle karegi)
-app.post('/api/login', (req, res) => {
+// 🔐 REAL POSTGRES AUTH APIs
+app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
-    if(email && password) {
-        // Username nikalne ke liye email ka pehla part use kar rahe hain
-        const username = email.split('@')[0];
-        res.json({ success: true, username: username, token: 'dummy-token-' + Date.now() });
-    } else {
-        res.json({ success: false, message: 'Email aur Password zaroori hai!' });
+    if (!email || !password) {
+        return res.json({ success: false, message: 'Email aur Password zaroori hai!' });
+    }
+
+    try {
+        // Database me user dhoondo
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            // Plain text password match check (Professional setup me bcrypt use hota hai, par abhi simple match)
+            if (user.password === password) {
+                return res.json({ 
+                    success: true, 
+                    username: user.username, 
+                    token: 'wp-token-' + user.id + '-' + Date.now() 
+                });
+            } else {
+                return res.json({ success: false, message: 'Password galat hai!' });
+            }
+        } else {
+            return res.json({ success: false, message: 'Account nahi mila! Pehle Register karein.' });
+        }
+    } catch (err) {
+        console.error(err);
+        return res.json({ success: false, message: 'Server Database Error!' });
     }
 });
 
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
     const { username, email, password } = req.body;
-    if(username && email && password) {
-        res.json({ success: true, username: username, token: 'dummy-token-' + Date.now() });
-    } else {
-        res.json({ success: false, message: 'Saari fields bharna zaroori hai!' });
+    if (!username || !email || !password) {
+        return res.json({ success: false, message: 'Saari fields bharna zaroori hai!' });
+    }
+
+    try {
+        // Check karo ki email ya username pehle se toh nahi hai
+        const userExists = await pool.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
+        if (userExists.rows.length > 0) {
+            return res.json({ success: false, message: 'Username ya Email pehle se register hai!' });
+        }
+
+        // Naya user insert karo
+        await pool.query(
+            'INSERT INTO users (username, email, password) VALUES ($1, $2, $3)',
+            [username, email, password]
+        );
+
+        return res.json({ 
+            success: true, 
+            username: username, 
+            token: 'wp-token-new-' + Date.now() 
+        });
+
+    } catch (err) {
+        console.error(err);
+        return res.json({ success: false, message: 'Registration Database Error!' });
     }
 });
 
-// Rooms ka live data track karne ke liye object
+// Rooms ka live data track karne ke liye object (In-Memory for WebRTC & Sync)
 const activeRooms = {}; 
 
 io.on('connection', (socket) => {
@@ -49,7 +120,6 @@ io.on('connection', (socket) => {
             activeRooms[roomId] = { users: [], currentVideo: null };
         }
 
-        // BACKEND FIX: Agar naye connection se pehle wahi username bhatka hua hai, toh use saaf karo
         activeRooms[roomId].users = activeRooms[roomId].users.filter(u => u.username !== username);
         
         const userObj = { id: socket.id, username: username };
@@ -61,20 +131,17 @@ io.on('connection', (socket) => {
 
         console.log(`${username} joined room: ${roomId}`);
 
-        // Baaki dosto ko signal bhejo ki naya banda aa gaya hai WebRTC ke liye
         socket.to(roomId).emit('new-peer', socket.id);
 
-        // Room ke andar sabhi ko fresh users list bhej do
         const usersList = activeRooms[roomId].users.map(u => u.username);
         io.to(roomId).emit('room-users-update', { users: usersList });
 
-        // Agar room me pehle se koi video chal rahi hai, toh naye bande ko sync me lao
         if (activeRooms[roomId].currentVideo) {
             socket.emit('video-sync', activeRooms[roomId].currentVideo);
         }
     });
 
-    // 2. VIDEO SYNC ENGINE (PLAY/PAUSE/SEEK)
+    // 2. VIDEO SYNC ENGINE
     socket.on('video-sync', (roomId, data) => {
         if (activeRooms[roomId]) {
             if (data.action === 'loadNewVideo') {
@@ -87,7 +154,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 3. REAL-TIME CHAT & REACTION
+    // 3. CHAT & REACTION
     socket.on('chat-message', (roomId, username, msg) => {
         io.to(roomId).emit('receive-chat', { user: username, msg: msg });
     });
@@ -96,7 +163,7 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('receive-reaction', emoji);
     });
 
-    // 4. WebRTC VOICE SIGNALING CHANNELS
+    // 4. WebRTC VOICE SIGNALING
     socket.on('webrtc-offer', (targetId, offer) => {
         socket.to(targetId).emit('webrtc-offer', socket.id, offer);
     });
@@ -109,7 +176,7 @@ io.on('connection', (socket) => {
         socket.to(targetId).emit('webrtc-ice', socket.id, candidate);
     });
 
-    // 5. CLEANUP ON DISCONNECT / LEAVE ROOM
+    // 5. CLEANUP ON DISCONNECT
     const handleUserLeave = (socketInstance) => {
         const rId = socketInstance.roomId;
         if (rId && activeRooms[rId]) {
