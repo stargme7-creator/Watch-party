@@ -6,103 +6,67 @@
 <title>WatchParty India - Saath Dekho</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--primary:#e91e8c;--primary-dark:#c2185b;--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a2e;--bg4:#22223b;--text:#ffffff;--text2:#aaaaaa;--gold:#ffd700;--success:#4caf50;--error:#f44336;--blue:#2196f3}
+:root{--primary:#e91e8c;--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a2e;--bg4:#22223b;--text:#ffffff;--text2:#aaaaaa;--gold:#ffd700;--success:#4caf50;--error:#f44336;--blue:#2196f3}
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;min-height:100vh}
-body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111;--text2:#555555}
-
-/* Scrollbar */
+body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111;--text2:#555}
 ::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:var(--bg2)}
 ::-webkit-scrollbar-thumb{background:var(--primary);border-radius:3px}
-
-/* Auth Screen */
-#auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0a0a0f 0%,#1a0a1e 100%)}
-.auth-logo{font-size:3em;margin-bottom:5px}
-.auth-title{font-size:2.5em;font-weight:900;background:linear-gradient(90deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:5px}
-.auth-subtitle{color:var(--text2);margin-bottom:30px;font-size:1em}
+#auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0a0a0f,#1a0a1e)}
+.auth-title{font-size:2.5em;font-weight:900;background:linear-gradient(90deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:5px;text-align:center}
+.auth-subtitle{color:var(--text2);margin-bottom:30px;font-size:1em;text-align:center}
 .auth-box{background:var(--bg2);border:1px solid #2a2a3e;border-radius:20px;padding:35px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(233,30,140,0.15)}
 .auth-tabs{display:flex;background:var(--bg3);border-radius:12px;padding:4px;margin-bottom:25px}
 .auth-tab{flex:1;padding:10px;border:none;border-radius:10px;cursor:pointer;font-size:0.95em;font-weight:600;background:transparent;color:var(--text2);transition:all 0.3s}
-.auth-tab.active{background:var(--primary);color:#fff;box-shadow:0 4px 15px rgba(233,30,140,0.4)}
+.auth-tab.active{background:var(--primary);color:#fff}
 .form-group{margin-bottom:15px}
-.form-label{display:block;color:var(--text2);font-size:0.85em;margin-bottom:6px;font-weight:500}
+.form-label{display:block;color:var(--text2);font-size:0.85em;margin-bottom:6px}
 .form-input{width:100%;padding:13px 15px;border-radius:10px;border:2px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.95em;outline:none;transition:border 0.3s}
 .form-input:focus{border-color:var(--primary)}
-.auth-btn{width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--primary),#9c27b0);color:#fff;font-size:1em;font-weight:700;cursor:pointer;transition:all 0.3s;margin-top:5px;letter-spacing:0.5px}
-.auth-btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(233,30,140,0.4)}
+.auth-btn{width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--primary),#9c27b0);color:#fff;font-size:1em;font-weight:700;cursor:pointer;margin-top:5px}
 .auth-link{color:var(--primary);cursor:pointer;font-size:0.85em;text-align:center;margin-top:12px;display:block}
-.auth-link:hover{text-decoration:underline}
 .msg-error{color:var(--error);font-size:0.85em;margin-bottom:10px;padding:10px;background:rgba(244,67,54,0.1);border-radius:8px;display:none}
 .msg-success{color:var(--success);font-size:0.85em;margin-bottom:10px;padding:10px;background:rgba(76,175,80,0.1);border-radius:8px;display:none}
-
-/* Home Screen */
 #home-screen{display:none;min-height:100vh;background:var(--bg)}
 .home-header{background:var(--bg2);border-bottom:1px solid var(--bg4);padding:15px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.home-logo{font-size:1.5em;font-weight:900;background:linear-gradient(90deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.header-actions{display:flex;gap:10px;align-items:center}
-.icon-btn{background:var(--bg3);border:none;color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:0.9em;transition:all 0.3s}
+.home-logo{font-size:1.5em;font-weight:900;background:linear-gradient(90deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;cursor:pointer}
+.icon-btn{background:var(--bg3);border:none;color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:0.9em}
 .icon-btn:hover{background:var(--primary);color:#fff}
-.home-content{max-width:600px;margin:0 auto;padding:30px 20px}
-.welcome-card{background:linear-gradient(135deg,var(--primary),#9c27b0);border-radius:20px;padding:25px;margin-bottom:25px;display:flex;align-items:center;gap:15px}
-.user-avatar{font-size:3em;background:rgba(255,255,255,0.2);border-radius:50%;width:70px;height:70px;display:flex;align-items:center;justify-content:center}
-.welcome-info h2{font-size:1.3em;font-weight:700}
-.welcome-info p{opacity:0.85;font-size:0.9em}
+.home-content{max-width:600px;margin:0 auto;padding:20px}
+.welcome-card{background:linear-gradient(135deg,var(--primary),#9c27b0);border-radius:20px;padding:20px;margin-bottom:20px;display:flex;align-items:center;gap:15px}
+.user-avatar{font-size:2.5em;background:rgba(255,255,255,0.2);border-radius:50%;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
 .premium-badge{background:var(--gold);color:#000;padding:3px 10px;border-radius:20px;font-size:0.75em;font-weight:700;margin-top:5px;display:inline-block}
 .free-badge{background:var(--bg4);color:var(--text2);padding:3px 10px;border-radius:20px;font-size:0.75em;font-weight:700;margin-top:5px;display:inline-block}
-.section-title{font-size:1.1em;font-weight:700;margin-bottom:15px;color:var(--text)}
+.home-tabs{display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:5px}
+.tab-content{display:none;padding-bottom:70px}
+.tab-content.active{display:block}
 .room-card{background:var(--bg2);border:1px solid var(--bg4);border-radius:15px;padding:20px;margin-bottom:15px}
-.create-room-btn{width:100%;padding:15px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--primary),#9c27b0);color:#fff;font-size:1.05em;font-weight:700;cursor:pointer;transition:all 0.3s;margin-bottom:15px}
-.create-room-btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(233,30,140,0.4)}
+.create-room-btn{width:100%;padding:15px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--primary),#9c27b0);color:#fff;font-size:1em;font-weight:700;cursor:pointer;margin-bottom:15px}
 .join-row{display:flex;gap:10px}
-.join-input{flex:1;padding:13px 15px;border-radius:10px;border:2px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.95em;outline:none;transition:border 0.3s}
+.join-input{flex:1;padding:13px;border-radius:10px;border:2px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.95em;outline:none}
 .join-input:focus{border-color:var(--primary)}
-.join-btn{padding:13px 20px;border-radius:10px;border:none;background:var(--bg4);color:var(--text);font-size:0.95em;cursor:pointer;transition:all 0.3s;white-space:nowrap}
-.join-btn:hover{background:var(--primary);color:#fff}
-.history-item{background:var(--bg3);border-radius:10px;padding:12px 15px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all 0.3s}
-.history-item:hover{background:var(--bg4);transform:translateX(5px)}
+.join-btn{padding:13px 20px;border-radius:10px;border:none;background:var(--primary);color:#fff;cursor:pointer;font-weight:600}
+.history-item{background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
 .history-room-id{font-weight:600;color:var(--primary)}
 .history-time{color:var(--text2);font-size:0.8em}
 .rejoin-btn{background:var(--primary);color:#fff;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:0.8em}
+.card{background:var(--bg2);border:1px solid var(--bg4);border-radius:15px;padding:20px;margin-bottom:15px}
+.card h3{color:var(--primary);margin-bottom:15px}
 .upgrade-card{background:linear-gradient(135deg,#1a0a1e,#0a1a2e);border:1px solid var(--gold);border-radius:15px;padding:20px;margin-bottom:15px;text-align:center}
-.upgrade-card h3{color:var(--gold);margin-bottom:8px}
-.upgrade-card p{color:var(--text2);font-size:0.9em;margin-bottom:15px}
-.upgrade-btn{background:linear-gradient(135deg,var(--gold),#ff8c00);color:#000;border:none;padding:12px 25px;border-radius:10px;cursor:pointer;font-weight:700;font-size:0.95em}
-.nav-tabs{display:flex;background:var(--bg2);border-top:1px solid var(--bg4);position:fixed;bottom:0;left:0;right:0;z-index:100}
-.nav-tab{flex:1;padding:12px 5px;border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:0.75em;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all 0.3s}
-.nav-tab.active{color:var(--primary)}
-.nav-tab span{font-size:1.3em}
-.tab-content{display:none;padding-bottom:70px}
-.tab-content.active{display:block}
-
-/* Profile */
-.profile-card{background:var(--bg2);border-radius:15px;padding:25px;margin-bottom:15px;text-align:center}
-.profile-avatar-big{font-size:4em;margin-bottom:10px;cursor:pointer}
-.avatar-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:15px 0}
-.avatar-option{font-size:1.8em;cursor:pointer;padding:8px;border-radius:8px;text-align:center;transition:all 0.3s}
-.avatar-option:hover,.avatar-option.selected{background:var(--primary);transform:scale(1.2)}
-.profile-name{font-size:1.3em;font-weight:700;margin-bottom:5px}
-.profile-email{color:var(--text2);font-size:0.9em;margin-bottom:15px}
+.upgrade-card h3{color:var(--gold)}
+.profile-avatar-big{font-size:4em;text-align:center;cursor:pointer;margin-bottom:10px}
+.avatar-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:15px 0}
+.avatar-option{font-size:1.8em;cursor:pointer;padding:6px;border-radius:8px;text-align:center}
+.avatar-option:hover,.avatar-option.selected{background:var(--primary)}
 .bio-input{width:100%;padding:12px;border-radius:10px;border:2px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.9em;outline:none;resize:vertical;min-height:80px}
-.bio-input:focus{border-color:var(--primary)}
-.save-btn{background:var(--primary);color:#fff;border:none;padding:12px 25px;border-radius:10px;cursor:pointer;font-weight:600;width:100%;margin-top:10px}
-
-/* Coupon */
-.coupon-card{background:var(--bg2);border-radius:15px;padding:20px;margin-bottom:15px}
+.save-btn{background:var(--primary);color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:600;width:100%;margin-top:10px}
 .coupon-row{display:flex;gap:10px;margin-top:10px}
 .coupon-input{flex:1;padding:12px;border-radius:10px;border:2px solid var(--gold);background:var(--bg3);color:var(--text);font-size:0.9em;outline:none}
 .coupon-btn{background:var(--gold);color:#000;border:none;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:700}
-
-/* Support */
-.support-card{background:var(--bg2);border-radius:15px;padding:20px;margin-bottom:15px}
-.support-card h3{margin-bottom:15px;color:var(--primary)}
-
-/* Party Screen */
 #party-screen{display:none;flex-direction:column;height:100vh;background:var(--bg)}
 .party-header{background:var(--bg2);border-bottom:1px solid var(--bg4);padding:10px 15px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
 .party-logo{font-size:1.1em;font-weight:900;background:linear-gradient(90deg,#e91e8c,#9c27b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .party-btns{display:flex;gap:6px;flex-wrap:wrap}
-.party-btn{padding:7px 11px;font-size:0.78em;border-radius:8px;border:none;color:#fff;cursor:pointer;font-weight:600;transition:all 0.3s}
-.party-btn:hover{transform:translateY(-1px);filter:brightness(1.2)}
+.party-btn{padding:7px 11px;font-size:0.78em;border-radius:8px;border:none;color:#fff;cursor:pointer;font-weight:600}
 .btn-yt{background:#ff0000}
 .btn-screen{background:#9c27b0}
 .btn-mic{background:var(--blue)}
@@ -113,78 +77,57 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
 .video-section{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
 .url-bar{display:none;gap:8px}
 .url-input{flex:1;padding:10px;border-radius:8px;border:2px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.9em;outline:none}
-.url-input:focus{border-color:var(--primary)}
-.url-go{padding:10px 15px;border-radius:8px;border:none;background:#ff0000;color:#fff;cursor:pointer;font-weight:600}
+.url-go{padding:10px 15px;border-radius:8px;border:none;background:#ff0000;color:#fff;cursor:pointer}
 .player-wrap{flex:1;background:#000;border-radius:12px;overflow:hidden;position:relative;min-height:200px}
 #player{width:100%;height:100%}
 #screen-video,#remote-screen-video{width:100%;height:100%;object-fit:contain;display:none;position:absolute;top:0;left:0}
-.player-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#333;text-align:center;padding:20px;gap:10px}
-.player-placeholder span:first-child{font-size:3em}
-.player-placeholder p{color:#555;font-size:0.85em}
+.player-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#444;text-align:center;padding:20px;gap:8px}
 .reactions-bar{display:flex;gap:8px;flex-wrap:wrap}
-.reaction-btn{background:var(--bg3);border:none;padding:8px 12px;border-radius:20px;cursor:pointer;font-size:1.1em;transition:all 0.3s;border:1px solid var(--bg4)}
+.reaction-btn{background:var(--bg3);border:1px solid var(--bg4);padding:8px 12px;border-radius:20px;cursor:pointer;font-size:1.1em}
 .reaction-btn:hover{transform:scale(1.3)}
 .floating-reaction{position:fixed;font-size:2em;animation:floatUp 2s ease-out forwards;pointer-events:none;z-index:999}
-@keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-200px) scale(1.5)}}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-200px)}}
 .side-panel{width:270px;display:flex;flex-direction:column;gap:8px;overflow:hidden}
 .panel-box{background:var(--bg2);border-radius:12px;padding:12px;border:1px solid var(--bg4)}
-.panel-title{color:var(--primary);font-size:0.85em;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.panel-title{color:var(--primary);font-size:0.85em;font-weight:700;margin-bottom:8px}
 #users-list{list-style:none}
-#users-list li{padding:5px 0;color:var(--text2);font-size:0.85em;display:flex;align-items:center;gap:5px}
-.chat-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
-#messages{flex:1;overflow-y:auto;margin-bottom:8px;max-height:250px}
-.msg-item{padding:6px 0;border-bottom:1px solid var(--bg4);font-size:0.82em;color:var(--text2)}
-.msg-item .msg-user{color:var(--primary);font-weight:700}
+#users-list li{padding:4px 0;color:var(--text2);font-size:0.85em}
+.chat-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#messages{flex:1;overflow-y:auto;margin-bottom:8px;max-height:280px}
+.msg-item{padding:5px 0;border-bottom:1px solid var(--bg4);font-size:0.82em;color:var(--text2)}
+.msg-user{color:var(--primary);font-weight:700}
 .msg-system{color:#666;font-style:italic}
 .chat-row{display:flex;gap:6px}
 .chat-input{flex:1;padding:9px 12px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:0.85em;outline:none}
-.chat-input:focus{border-color:var(--primary)}
-.chat-send{padding:9px 13px;border-radius:8px;border:none;background:var(--primary);color:#fff;cursor:pointer;font-size:0.85em}
-.timer-bar{background:var(--bg3);border-radius:8px;padding:8px 12px;font-size:0.8em;color:var(--text2);text-align:center;border:1px solid var(--bg4)}
+.chat-send{padding:9px 13px;border-radius:8px;border:none;background:var(--primary);color:#fff;cursor:pointer}
+.timer-bar{background:var(--bg3);border-radius:8px;padding:8px 12px;font-size:0.8em;color:var(--text2);text-align:center}
 .timer-premium{color:var(--gold);font-weight:600}
-
-/* Modal */
+.share-request{background:var(--bg2);border:2px solid var(--primary);border-radius:15px;padding:15px;margin-bottom:10px;text-align:center;display:none}
+.share-req-btns{display:flex;gap:10px;margin-top:10px;justify-content:center}
+.approve-btn{background:var(--success);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer}
+.reject-btn{background:var(--error);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer}
 .modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;padding:20px}
 .modal.show{display:flex}
-.modal-box{background:var(--bg2);border-radius:20px;padding:30px;width:100%;max-width:400px;border:1px solid var(--bg4)}
+.modal-box{background:var(--bg2);border-radius:20px;padding:30px;width:100%;max-width:400px}
 .modal-title{font-size:1.2em;font-weight:700;margin-bottom:20px;color:var(--primary)}
-.modal-btn{width:100%;padding:13px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:1em;font-weight:700;cursor:pointer;margin-top:10px}
-.modal-close{background:var(--bg4);color:var(--text)}
-
-/* Screen share request */
-.share-request{background:var(--bg2);border:2px solid var(--primary);border-radius:15px;padding:20px;margin-bottom:10px;text-align:center;display:none}
-.share-req-btns{display:flex;gap:10px;margin-top:15px;justify-content:center}
-.approve-btn{background:var(--success);color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600}
-.reject-btn{background:var(--error);color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600}
-
-/* Notification */
-.notif{position:fixed;top:20px;right:20px;background:var(--bg2);border:1px solid var(--primary);border-radius:12px;padding:15px 20px;z-index:9999;animation:slideIn 0.3s ease;max-width:300px;box-shadow:0 10px 30px rgba(0,0,0,0.5)}
+.modal-btn{width:100%;padding:13px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:1em;font-weight:700;cursor:pointer;margin-top:8px}
+.notif{position:fixed;top:20px;right:20px;background:var(--bg2);border:1px solid var(--primary);border-radius:12px;padding:15px 20px;z-index:9999;animation:slideIn 0.3s ease;max-width:280px}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-
-@media(max-width:768px){
-  .party-main{flex-direction:column}
-  .side-panel{width:100%}
-  #messages{max-height:150px}
-}
+@media(max-width:768px){.party-main{flex-direction:column}.side-panel{width:100%}#messages{max-height:180px}}
 </style>
 </head>
 <body>
 
-<!-- Auth Screen -->
 <div id="auth-screen">
-  <div style="text-align:center;margin-bottom:20px">
-    <div class="auth-logo">🎬</div>
-    <div class="auth-title">WatchParty India</div>
-    <div class="auth-subtitle">Apne dosto ke saath movies aur dramas saath dekho!</div>
-  </div>
+  <div style="font-size:3em;text-align:center">🎬</div>
+  <div class="auth-title">WatchParty India</div>
+  <div class="auth-subtitle">Apne dosto ke saath movies aur dramas saath dekho!</div>
   <div class="auth-box">
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
       <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
       <button class="auth-tab" onclick="switchAuthTab('forgot')">Forgot</button>
     </div>
-
-    <!-- Login -->
     <div id="form-login">
       <div class="msg-error" id="login-error"></div>
       <div class="form-group">
@@ -197,8 +140,6 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
       </div>
       <button class="auth-btn" onclick="login()">🔐 Login Karo</button>
     </div>
-
-    <!-- Register -->
     <div id="form-register" style="display:none">
       <div class="msg-error" id="reg-error"></div>
       <div class="msg-success" id="reg-success"></div>
@@ -216,19 +157,15 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
       </div>
       <button class="auth-btn" onclick="register()">✅ Register Karo</button>
     </div>
-
-    <!-- OTP Verify -->
     <div id="form-otp" style="display:none">
       <div class="msg-error" id="otp-error"></div>
-      <p style="color:var(--text2);margin-bottom:15px;font-size:0.9em">📧 OTP bheja gaya! Email check karo!</p>
+      <p style="color:var(--text2);margin-bottom:15px;font-size:0.9em">OTP bheja gaya! Email check karo!</p>
       <div class="form-group">
         <label class="form-label">OTP</label>
         <input class="form-input" type="text" id="otp-input" placeholder="6 digit OTP..." maxlength="6" />
       </div>
       <button class="auth-btn" onclick="verifyOTP()">✅ Verify Karo</button>
     </div>
-
-    <!-- Forgot Password -->
     <div id="form-forgot" style="display:none">
       <div class="msg-error" id="forgot-error"></div>
       <div class="msg-success" id="forgot-success"></div>
@@ -242,50 +179,43 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
       <div id="forgot-step2" style="display:none">
         <div class="form-group">
           <label class="form-label">OTP</label>
-          <input class="form-input" type="text" id="forgot-otp" placeholder="OTP..." maxlength="6" />
+          <input class="form-input" type="text" id="forgot-otp" placeholder="OTP..." />
         </div>
         <div class="form-group">
           <label class="form-label">Naya Password</label>
           <input class="form-input" type="password" id="new-password" placeholder="Naya password..." />
         </div>
-        <button class="auth-btn" onclick="resetPassword()">🔐 Password Reset Karo</button>
+        <button class="auth-btn" onclick="resetPassword()">🔐 Reset Karo</button>
       </div>
       <span class="auth-link" onclick="switchAuthTab('login')">← Login pe wapas jao</span>
     </div>
   </div>
 </div>
 
-<!-- Home Screen -->
 <div id="home-screen">
   <div class="home-header">
-    <div class="home-logo">🎬 WatchParty</div>
-    <div class="header-actions">
+    <div class="home-logo" id="home-logo-btn">🎬 WatchParty</div>
+    <div style="display:flex;gap:8px">
       <button class="icon-btn" onclick="toggleTheme()">🌙</button>
       <button class="icon-btn" onclick="logout()">🚪 Logout</button>
     </div>
   </div>
-
   <div class="home-content">
-    <!-- Welcome Card -->
     <div class="welcome-card">
       <div class="user-avatar" id="home-avatar">🎬</div>
-      <div class="welcome-info">
-        <h2 id="home-username">User</h2>
-        <p id="home-email">email@example.com</p>
+      <div>
+        <div style="font-size:1.2em;font-weight:700" id="home-username">User</div>
+        <div style="opacity:0.85;font-size:0.9em" id="home-email">email</div>
         <span id="home-badge" class="free-badge">FREE</span>
       </div>
     </div>
-
-    <!-- Nav Tabs -->
-    <div style="display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:5px">
-      <button class="icon-btn" style="white-space:nowrap" onclick="showHomeTab('room')" id="tab-room">🏠 Room</button>
-      <button class="icon-btn" style="white-space:nowrap" onclick="showHomeTab('profile')" id="tab-profile">👤 Profile</button>
-      <button class="icon-btn" style="white-space:nowrap" onclick="showHomeTab('history')" id="tab-history">📜 History</button>
-      <button class="icon-btn" style="white-space:nowrap" onclick="showHomeTab('premium')" id="tab-premium">👑 Premium</button>
-      <button class="icon-btn" style="white-space:nowrap" onclick="showHomeTab('support')" id="tab-support">🎧 Support</button>
+    <div class="home-tabs">
+      <button class="icon-btn" onclick="showHomeTab('room')">🏠 Room</button>
+      <button class="icon-btn" onclick="showHomeTab('profile')">👤 Profile</button>
+      <button class="icon-btn" onclick="showHomeTab('history')">📜 History</button>
+      <button class="icon-btn" onclick="showHomeTab('premium')">👑 Premium</button>
+      <button class="icon-btn" onclick="showHomeTab('support')">🎧 Support</button>
     </div>
-
-    <!-- Room Tab -->
     <div id="home-tab-room" class="tab-content active">
       <div class="room-card">
         <button class="create-room-btn" onclick="createRoom()">🏠 Naya Room Banao</button>
@@ -295,48 +225,41 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
         </div>
       </div>
     </div>
-
-    <!-- Profile Tab -->
     <div id="home-tab-profile" class="tab-content">
-      <div class="profile-card">
+      <div class="card" style="text-align:center">
         <div class="profile-avatar-big" id="profile-avatar-display" onclick="toggleAvatarPicker()">🎬</div>
         <div id="avatar-picker" style="display:none">
           <div class="avatar-grid" id="avatar-grid"></div>
         </div>
-        <div class="profile-name" id="profile-name-display">Username</div>
-        <div class="profile-email" id="profile-email-display">email</div>
+        <div style="font-size:1.2em;font-weight:700" id="profile-name-display">Username</div>
+        <div style="color:var(--text2);font-size:0.9em;margin-bottom:15px" id="profile-email-display">email</div>
         <div class="form-group" style="text-align:left">
           <label class="form-label">Bio</label>
-          <textarea class="bio-input" id="bio-input" placeholder="Apne baare mein kuch likho..."></textarea>
+          <textarea class="bio-input" id="bio-input" placeholder="Apne baare mein likho..."></textarea>
         </div>
-        <button class="save-btn" onclick="saveProfile()">💾 Profile Save Karo</button>
+        <button class="save-btn" onclick="saveProfile()">💾 Save Karo</button>
       </div>
     </div>
-
-    <!-- History Tab -->
     <div id="home-tab-history" class="tab-content">
-      <div class="room-card">
-        <div class="section-title">📜 Room History</div>
-        <div id="history-list"><p style="color:var(--text2);font-size:0.9em">Koi history nahi hai abhi!</p></div>
+      <div class="card">
+        <h3>📜 Room History</h3>
+        <div id="history-list"><p style="color:var(--text2)">Koi history nahi!</p></div>
       </div>
     </div>
-
-    <!-- Premium Tab -->
     <div id="home-tab-premium" class="tab-content">
       <div class="upgrade-card">
-        <h3>👑 Premium Member Bano!</h3>
-        <p>Unlimited watch time, custom themes, aur bahut kuch!</p>
-        <div style="text-align:left;margin:15px 0;color:var(--text2);font-size:0.9em">
-          ✅ Unlimited room time<br>
-          ✅ Custom room themes<br>
-          ✅ Priority support<br>
+        <h3>👑 Premium Bano!</h3>
+        <p style="color:var(--text2);font-size:0.9em;margin:10px 0">Unlimited watch time aur bahut kuch!</p>
+        <div style="text-align:left;color:var(--text2);font-size:0.9em;margin-bottom:15px">
+          ✅ 4 ghante room time (Free users)<br>
+          ✅ Premium — Unlimited time<br>
           ✅ Ad-free experience<br>
-          ✅ Exclusive features
+          ✅ Priority support
         </div>
       </div>
-      <div class="coupon-card">
-        <div class="section-title">🎫 Coupon Code</div>
-        <p style="color:var(--text2);font-size:0.85em">Agar tumhare paas coupon code hai toh yahan daalo!</p>
+      <div class="card">
+        <h3>🎫 Coupon Code</h3>
+        <p style="color:var(--text2);font-size:0.85em">Premium code daalo!</p>
         <div class="coupon-row">
           <input class="coupon-input" type="text" id="coupon-input" placeholder="COUPON CODE..." />
           <button class="coupon-btn" onclick="applyCoupon()">Apply</button>
@@ -345,10 +268,8 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
         <div class="msg-success" id="coupon-success" style="margin-top:10px"></div>
       </div>
     </div>
-
-    <!-- Support Tab -->
     <div id="home-tab-support" class="tab-content">
-      <div class="support-card">
+      <div class="card">
         <h3>🎧 Customer Support</h3>
         <div class="form-group">
           <label class="form-label">Subject</label>
@@ -356,26 +277,25 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
         </div>
         <div class="form-group">
           <label class="form-label">Message</label>
-          <textarea class="bio-input" id="support-message" placeholder="Apni problem detail mein likho..."></textarea>
+          <textarea class="bio-input" id="support-message" placeholder="Detail mein likho..."></textarea>
         </div>
-        <button class="save-btn" onclick="submitSupport()">📨 Ticket Submit Karo</button>
+        <button class="save-btn" onclick="submitSupport()">📨 Submit Karo</button>
         <div class="msg-error" id="support-error" style="margin-top:10px"></div>
         <div class="msg-success" id="support-success" style="margin-top:10px"></div>
       </div>
-      <div class="support-card">
+      <div class="card">
         <h3>❓ FAQ</h3>
         <div style="color:var(--text2);font-size:0.9em">
           <p style="margin-bottom:10px"><strong style="color:var(--text)">YouTube sync kaise kare?</strong><br>YouTube button dabao, link paste karo, Enter dabao!</p>
-          <p style="margin-bottom:10px"><strong style="color:var(--text)">Mic kaam nahi kar raha?</strong><br>Browser mein mic permission Allow karo!</p>
-          <p style="margin-bottom:10px"><strong style="color:var(--text)">Screen share kaise kare?</strong><br>Sirf PC/Laptop pe kaam karta hai Chrome mein!</p>
-          <p><strong style="color:var(--text)">Premium kaise milega?</strong><br>Coupon code use karo ya admin se contact karo!</p>
+          <p style="margin-bottom:10px"><strong style="color:var(--text)">Mic kaam nahi kar raha?</strong><br>Chrome browser use karo aur mic permission Allow karo!</p>
+          <p style="margin-bottom:10px"><strong style="color:var(--text)">Screen share kaise kare?</strong><br>Sirf PC/Laptop pe Chrome mein kaam karta hai!</p>
+          <p><strong style="color:var(--text)">Premium kaise milega?</strong><br>Coupon code use karo Premium tab mein!</p>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Party Screen -->
 <div id="party-screen">
   <div class="party-header">
     <div class="party-logo">🎬 WatchParty</div>
@@ -384,22 +304,21 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
       <button class="party-btn btn-yt" onclick="toggleUrlBar()">📺 YouTube</button>
       <button class="party-btn btn-screen" id="btn-screen" onclick="startScreenShare()">🖥️ Share</button>
       <button class="party-btn btn-mic" id="btn-mic" onclick="toggleMic()">🎙️ Mic</button>
-      <button class="party-btn btn-copy" onclick="copyRoomId()">📋 ID Copy</button>
+      <button class="party-btn btn-copy" onclick="copyRoomId()">📋 ID</button>
       <button class="party-btn btn-leave" onclick="leaveRoom()">🚪 Leave</button>
     </div>
   </div>
-
   <div class="party-main">
     <div class="video-section">
       <div class="url-bar" id="url-bar">
         <input class="url-input" type="text" id="youtube-url" placeholder="YouTube link paste karo..." onkeydown="if(event.key==='Enter')loadVideo()" />
         <button class="url-go" onclick="loadVideo()">▶</button>
       </div>
-      <div class="player-wrap" id="player-wrap">
+      <div class="player-wrap">
         <div class="player-placeholder" id="player-placeholder">
-          <span>🎬</span>
+          <span style="font-size:2em">🎬</span>
           <span>YouTube ya Screen Share karo</span>
-          <p>Netflix, Motion — screen share se dekho (PC only)</p>
+          <p style="color:#555;font-size:0.85em">Screen share sirf PC Chrome pe</p>
         </div>
         <div id="player"></div>
         <video id="screen-video" autoplay playsinline muted></video>
@@ -416,10 +335,9 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
       </div>
       <div class="timer-bar" id="timer-bar"></div>
     </div>
-
     <div class="side-panel">
       <div class="share-request" id="share-request-box">
-        <p id="share-req-text"></p>
+        <p id="share-req-text" style="font-size:0.9em"></p>
         <div class="share-req-btns">
           <button class="approve-btn" onclick="approveScreenShare()">✅ Allow</button>
           <button class="reject-btn" onclick="rejectScreenShare()">❌ Reject</button>
@@ -441,11 +359,10 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
   </div>
 </div>
 
-<!-- Admin Modal -->
 <div class="modal" id="admin-modal">
   <div class="modal-box">
     <div class="modal-title">📊 Admin Panel</div>
-    <div id="admin-stats" style="color:var(--text2);margin-bottom:15px"></div>
+    <div id="admin-stats" style="color:var(--text2);margin-bottom:15px;font-size:0.9em"></div>
     <div class="form-group">
       <label class="form-label">User Email</label>
       <input class="form-input" type="email" id="admin-email" placeholder="User email..." />
@@ -455,16 +372,14 @@ body.light{--bg:#f0f0f5;--bg2:#ffffff;--bg3:#e8e8f0;--bg4:#d8d8e8;--text:#111111
       <input class="form-input" type="password" id="admin-key" placeholder="Admin key..." />
     </div>
     <button class="modal-btn" onclick="makePremium(true)">👑 Premium Banao</button>
-    <button class="modal-btn" style="background:var(--bg4);color:var(--text);margin-top:5px" onclick="makePremium(false)">Remove Premium</button>
-    <button class="modal-btn modal-close" onclick="closeModal('admin-modal')">Band Karo</button>
+    <button class="modal-btn" style="background:var(--bg4);color:var(--text)" onclick="makePremium(false)">Remove Premium</button>
+    <button class="modal-btn" style="background:var(--bg4);color:var(--text)" onclick="closeModal('admin-modal')">Band Karo</button>
   </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
-
-// State
 let state = {
   token: localStorage.getItem('wp_token'),
   username: localStorage.getItem('wp_username'),
@@ -481,23 +396,19 @@ let state = {
   peerConnection: null,
   pendingShareId: null,
   isDark: true,
-  roomStartTime: null,
   roomTimer: null,
   pendingEmail: ''
 };
 
 const AVATARS = ['🎬','🎭','🎪','🎨','🎯','🎲','🎮','🎵','🎸','🎹','🎺','🎻','🏆','🌟','🔥','💎','👑','🦁','🐯','🦊','🐺','🦋','🌈','⚡'];
 
-// Init
 if (state.token && state.username) showHomeScreen();
 
-// YouTube API
 const ytScript = document.createElement('script');
-ytScript.src = "https://www.youtube.com/iframe_api";
+ytScript.src = 'https://www.youtube.com/iframe_api';
 document.head.appendChild(ytScript);
 function onYouTubeIframeAPIReady() {}
 
-// Auth Functions
 function switchAuthTab(tab) {
   ['login','register','otp','forgot'].forEach(t => {
     document.getElementById('form-' + t).style.display = t === tab ? 'block' : 'none';
@@ -512,26 +423,20 @@ async function register() {
   const email = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
   const err = document.getElementById('reg-error');
-  const suc = document.getElementById('reg-success');
   if (!username || !email || !password) { showMsg(err, 'Sab fields bharo!'); return; }
-  const res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username, email, password}) });
+  const res = await fetch('/api/register', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,email,password})});
   const data = await res.json();
-  if (data.success) {
-    state.pendingEmail = email;
-    showMsg(suc, 'OTP bheja gaya!');
-    setTimeout(() => { switchAuthTab('otp'); }, 1000);
-  } else { showMsg(err, data.message); }
+  if (data.success) { saveUserData(data, email); showHomeScreen(); }
+  else { showMsg(err, data.message); }
 }
 
 async function verifyOTP() {
   const otp = document.getElementById('otp-input').value.trim();
   const err = document.getElementById('otp-error');
-  const res = await fetch('/api/verify-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: state.pendingEmail, otp}) });
+  const res = await fetch('/api/verify-otp', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.pendingEmail,otp})});
   const data = await res.json();
-  if (data.success) {
-    saveUserData(data);
-    showHomeScreen();
-  } else { showMsg(err, data.message); }
+  if (data.success) { saveUserData(data, state.pendingEmail); showHomeScreen(); }
+  else { showMsg(err, data.message); }
 }
 
 async function login() {
@@ -539,9 +444,9 @@ async function login() {
   const password = document.getElementById('login-password').value;
   const err = document.getElementById('login-error');
   if (!email || !password) { showMsg(err, 'Sab fields bharo!'); return; }
-  const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
+  const res = await fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
   const data = await res.json();
-  if (data.success) { saveUserData(data); showHomeScreen(); }
+  if (data.success) { saveUserData(data, email); showHomeScreen(); }
   else { showMsg(err, data.message); }
 }
 
@@ -549,26 +454,30 @@ async function forgotPassword() {
   const email = document.getElementById('forgot-email').value.trim();
   const err = document.getElementById('forgot-error');
   const suc = document.getElementById('forgot-success');
-  const res = await fetch('/api/forgot-password', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email}) });
+  const res = await fetch('/api/forgot-password', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
   const data = await res.json();
-  if (data.success) { state.pendingEmail = email; showMsg(suc, 'OTP bheja gaya!'); document.getElementById('forgot-step2').style.display = 'block'; document.getElementById('forgot-step1').style.display = 'none'; }
-  else { showMsg(err, data.message); }
+  if (data.success) {
+    state.pendingEmail = email;
+    showMsg(suc, data.message);
+    document.getElementById('forgot-step2').style.display = 'block';
+    document.getElementById('forgot-step1').style.display = 'none';
+  } else { showMsg(err, data.message); }
 }
 
 async function resetPassword() {
   const otp = document.getElementById('forgot-otp').value.trim();
   const newPassword = document.getElementById('new-password').value;
   const err = document.getElementById('forgot-error');
-  const res = await fetch('/api/reset-password', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: state.pendingEmail, otp, newPassword}) });
+  const res = await fetch('/api/reset-password', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.pendingEmail,otp,newPassword})});
   const data = await res.json();
-  if (data.success) { showNotif('Password change ho gaya! Ab login karo! ✅'); switchAuthTab('login'); }
+  if (data.success) { showNotif('Password change ho gaya!'); switchAuthTab('login'); }
   else { showMsg(err, data.message); }
 }
 
-function saveUserData(data) {
+function saveUserData(data, email) {
   state.token = data.token;
   state.username = data.username;
-  state.email = data.email || document.getElementById('login-email')?.value || state.pendingEmail;
+  state.email = email || data.email || '';
   state.isPremium = data.is_premium || false;
   state.avatar = data.avatar || '🎬';
   localStorage.setItem('wp_token', data.token);
@@ -578,24 +487,20 @@ function saveUserData(data) {
   localStorage.setItem('wp_avatar', state.avatar);
 }
 
-function logout() {
-  localStorage.clear();
-  location.reload();
-}
+function logout() { localStorage.clear(); location.reload(); }
 
-// Home Screen
 function showHomeScreen() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('party-screen').style.display = 'none';
   document.getElementById('home-screen').style.display = 'block';
   document.getElementById('home-username').textContent = state.username;
-  document.getElementById('home-email').textContent = state.email || '';
+  document.getElementById('home-email').textContent = state.email;
   document.getElementById('home-avatar').textContent = state.avatar;
   document.getElementById('home-badge').textContent = state.isPremium ? '👑 PREMIUM' : 'FREE';
   document.getElementById('home-badge').className = state.isPremium ? 'premium-badge' : 'free-badge';
   document.getElementById('profile-avatar-display').textContent = state.avatar;
   document.getElementById('profile-name-display').textContent = state.username;
-  document.getElementById('profile-email-display').textContent = state.email || '';
+  document.getElementById('profile-email-display').textContent = state.email;
   loadAvatarGrid();
   loadHistory();
 }
@@ -610,7 +515,6 @@ function toggleTheme() {
   document.body.classList.toggle('light', !state.isDark);
 }
 
-// Avatar
 function loadAvatarGrid() {
   const grid = document.getElementById('avatar-grid');
   grid.innerHTML = '';
@@ -618,42 +522,39 @@ function loadAvatarGrid() {
     const div = document.createElement('div');
     div.className = 'avatar-option' + (av === state.avatar ? ' selected' : '');
     div.textContent = av;
-    div.onclick = () => { state.avatar = av; document.getElementById('profile-avatar-display').textContent = av; document.querySelectorAll('.avatar-option').forEach(d => d.classList.remove('selected')); div.classList.add('selected'); };
+    div.onclick = () => {
+      state.avatar = av;
+      document.getElementById('profile-avatar-display').textContent = av;
+      document.querySelectorAll('.avatar-option').forEach(d => d.classList.remove('selected'));
+      div.classList.add('selected');
+    };
     grid.appendChild(div);
   });
 }
 
 function toggleAvatarPicker() {
-  const picker = document.getElementById('avatar-picker');
-  picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+  const p = document.getElementById('avatar-picker');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
 }
 
 async function saveProfile() {
   const bio = document.getElementById('bio-input').value;
-  await fetch('/api/update-profile', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: state.email, avatar: state.avatar, bio}) });
+  await fetch('/api/update-profile', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email,avatar:state.avatar,bio})});
   localStorage.setItem('wp_avatar', state.avatar);
   document.getElementById('home-avatar').textContent = state.avatar;
-  showNotif('Profile save ho gaya! ✅');
-  toggleAvatarPicker();
+  showNotif('Profile save ho gaya!');
 }
 
-// Room History
 async function loadHistory() {
   if (!state.email) return;
-  const res = await fetch('/api/room-history/' + state.email);
-  const data = await res.json();
-  const list = document.getElementById('history-list');
-  if (data.history && data.history.length > 0) {
-    list.innerHTML = data.history.map(h => `
-      <div class="history-item">
-        <div>
-          <div class="history-room-id">${h.room_id}</div>
-          <div class="history-time">${new Date(h.created_at).toLocaleString()}</div>
-        </div>
-        <button class="rejoin-btn" onclick="rejoinRoom('${h.room_id}')">Rejoin</button>
-      </div>
-    `).join('');
-  }
+  try {
+    const res = await fetch('/api/room-history/' + encodeURIComponent(state.email));
+    const data = await res.json();
+    const list = document.getElementById('history-list');
+    if (data.history && data.history.length > 0) {
+      list.innerHTML = data.history.map(h => '<div class="history-item"><div><div class="history-room-id">' + h.room_id + '</div><div class="history-time">' + new Date(h.created_at).toLocaleString() + '</div></div><button class="rejoin-btn" onclick="rejoinRoom(\'' + h.room_id + '\')">Rejoin</button></div>').join('');
+    }
+  } catch(e) {}
 }
 
 function rejoinRoom(id) {
@@ -662,12 +563,11 @@ function rejoinRoom(id) {
   joinRoom();
 }
 
-// Coupon
 async function applyCoupon() {
   const coupon = document.getElementById('coupon-input').value.trim();
   const err = document.getElementById('coupon-error');
   const suc = document.getElementById('coupon-success');
-  const res = await fetch('/api/apply-coupon', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: state.email, coupon}) });
+  const res = await fetch('/api/apply-coupon', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email,coupon})});
   const data = await res.json();
   if (data.success) {
     state.isPremium = true;
@@ -675,49 +575,45 @@ async function applyCoupon() {
     showMsg(suc, data.message);
     document.getElementById('home-badge').textContent = '👑 PREMIUM';
     document.getElementById('home-badge').className = 'premium-badge';
-    showNotif('Premium mil gaya! 🎉👑');
+    showNotif('Premium mil gaya! 👑');
   } else { showMsg(err, data.message); }
 }
 
-// Support
 async function submitSupport() {
   const subject = document.getElementById('support-subject').value.trim();
   const message = document.getElementById('support-message').value.trim();
   const err = document.getElementById('support-error');
   const suc = document.getElementById('support-success');
   if (!subject || !message) { showMsg(err, 'Sab fields bharo!'); return; }
-  const res = await fetch('/api/support', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: state.email, subject, message}) });
+  const res = await fetch('/api/support', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email,subject,message})});
   const data = await res.json();
-  if (data.success) { showMsg(suc, 'Ticket submit ho gaya! Hum jald reply karenge!'); }
+  if (data.success) { showMsg(suc, 'Ticket submit ho gaya!'); }
   else { showMsg(err, 'Error aaya!'); }
 }
 
-// Admin
 async function openAdmin() {
   const res = await fetch('/api/stats');
   const data = await res.json();
-  document.getElementById('admin-stats').innerHTML = `👥 Total Users: <strong>${data.totalUsers}</strong> | 👑 Premium: <strong>${data.premiumUsers}</strong>`;
+  document.getElementById('admin-stats').textContent = 'Total Users: ' + data.totalUsers + ' | Premium: ' + data.premiumUsers;
   document.getElementById('admin-modal').classList.add('show');
 }
 
 async function makePremium(isPremium) {
   const email = document.getElementById('admin-email').value.trim();
   const adminKey = document.getElementById('admin-key').value.trim();
-  const res = await fetch('/api/make-premium', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({adminKey, email, isPremium}) });
+  const res = await fetch('/api/make-premium', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminKey,email,isPremium})});
   const data = await res.json();
-  showNotif(data.success ? (isPremium ? 'Premium de diya! 👑' : 'Premium hata diya!') : 'Admin key galat!');
+  showNotif(data.success ? (isPremium ? 'Premium de diya!' : 'Premium hata diya!') : 'Admin key galat!');
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
-// Room Functions
 async function createRoom() {
-  const limitRes = await fetch('/api/check-limit', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: state.email}) });
-  const limitData = await limitRes.json();
-  if (!limitData.allowed) {
-    showNotif(`⏱️ ${limitData.waitMinutes} minute baad try karo! Premium lo unlimited ke liye!`);
-    return;
-  }
+  try {
+    const res = await fetch('/api/check-limit', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email})});
+    const data = await res.json();
+    if (!data.allowed) { showNotif(data.waitMinutes + ' minute baad try karo! Premium lo unlimited ke liye!'); return; }
+  } catch(e) {}
   state.roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
   enterParty();
 }
@@ -725,12 +621,11 @@ async function createRoom() {
 async function joinRoom() {
   const inputRoom = document.getElementById('join-room-input').value.trim().toUpperCase();
   if (!inputRoom) { showNotif('Room ID daalo!'); return; }
-  const limitRes = await fetch('/api/check-limit', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: state.email}) });
-  const limitData = await limitRes.json();
-  if (!limitData.allowed) {
-    showNotif(`⏱️ ${limitData.waitMinutes} minute baad try karo! Premium lo unlimited ke liye!`);
-    return;
-  }
+  try {
+    const res = await fetch('/api/check-limit', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email})});
+    const data = await res.json();
+    if (!data.allowed) { showNotif(data.waitMinutes + ' minute baad try karo!'); return; }
+  } catch(e) {}
   state.roomId = inputRoom;
   enterParty();
 }
@@ -740,29 +635,27 @@ async function enterParty() {
   document.getElementById('party-screen').style.display = 'flex';
   document.getElementById('room-display').textContent = 'Room: ' + state.roomId;
   socket.emit('join-room', state.roomId, state.username);
-  await fetch('/api/room-history', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: state.email, roomId: state.roomId}) });
-  await fetch('/api/update-room-time', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: state.email}) });
+  try { await fetch('/api/room-history', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email,roomId:state.roomId})}); } catch(e) {}
+  try { await fetch('/api/update-room-time', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.email})}); } catch(e) {}
   if (!state.isPremium) startRoomTimer();
   else document.getElementById('timer-bar').innerHTML = '<span class="timer-premium">👑 Premium — Unlimited Time!</span>';
 }
 
 function startRoomTimer() {
   state.roomStartTime = Date.now();
-  const twoHours = 2 * 60 * 60 * 1000;
+  const limit = 5 * 60 * 60 * 1000;
   state.roomTimer = setInterval(() => {
-    const elapsed = Date.now() - state.roomStartTime;
-    const remaining = twoHours - elapsed;
+    const remaining = limit - (Date.now() - state.roomStartTime);
     if (remaining <= 0) {
       clearInterval(state.roomTimer);
-      document.getElementById('timer-bar').textContent = '⏰ Time khatam! 1 ghante baad wapas aao ya Premium lo!';
-      showNotif('⏰ 2 ghante poore ho gaye! Room se nikala ja raha hai!');
+      showNotif('5 ghante poore ho gaye! Premium lo unlimited ke liye!');
       setTimeout(leaveRoom, 3000);
       return;
     }
     const h = Math.floor(remaining / 3600000);
     const m = Math.floor((remaining % 3600000) / 60000);
     const s = Math.floor((remaining % 60000) / 1000);
-    document.getElementById('timer-bar').textContent = `⏱️ Free time bacha: ${h}h ${m}m ${s}s | Premium lo unlimited ke liye!`;
+    document.getElementById('timer-bar').textContent = 'Free time: ' + h + 'h ' + m + 'm ' + s + 's | Premium lo unlimited ke liye!';
   }, 1000);
 }
 
@@ -771,21 +664,20 @@ function leaveRoom() {
   if (state.micStream) state.micStream.getTracks().forEach(t => t.stop());
   if (state.screenStream) state.screenStream.getTracks().forEach(t => t.stop());
   if (state.peerConnection) state.peerConnection.close();
-  state.player = null;
-  state.micStream = null;
-  state.screenStream = null;
-  state.peerConnection = null;
-  state.isMicOn = false;
+  state.player = null; state.micStream = null; state.screenStream = null; state.peerConnection = null; state.isMicOn = false;
   document.getElementById('party-screen').style.display = 'none';
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('users-list').innerHTML = '';
+  document.getElementById('btn-mic').textContent = '🎙️ Mic';
+  document.getElementById('btn-mic').classList.remove('active');
   showHomeScreen();
 }
 
 function copyRoomId() {
   navigator.clipboard.writeText(state.roomId);
-  showNotif('Room ID copy ho gaya: ' + state.roomId + ' 🎉');
+  showNotif('Room ID copy ho gaya: ' + state.roomId);
 }
 
-// YouTube
 function toggleUrlBar() {
   state.urlBarVisible = !state.urlBarVisible;
   document.getElementById('url-bar').style.display = state.urlBarVisible ? 'flex' : 'none';
@@ -796,14 +688,12 @@ function loadVideo() {
   const videoId = url.match(/(?:v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
   if (!videoId) { showNotif('Sahi YouTube link dalo!'); return; }
   document.getElementById('player-placeholder').style.display = 'none';
-  document.getElementById('screen-video').style.display = 'none';
-  document.getElementById('remote-screen-video').style.display = 'none';
   if (state.player) { state.player.loadVideoById(videoId); }
   else {
     state.player = new YT.Player('player', {
       videoId, width:'100%', height:'100%',
       playerVars:{autoplay:1,controls:1},
-      events:{onStateChange: onPlayerStateChange}
+      events:{onStateChange:onPlayerStateChange}
     });
   }
   socket.emit('video-sync', state.roomId, {action:'load', videoId, time:0});
@@ -826,7 +716,6 @@ socket.on('video-sync', (data) => {
   setTimeout(() => { state.isSyncing = false; }, 1000);
 });
 
-// Reactions
 function sendReaction(emoji) {
   socket.emit('reaction', state.roomId, emoji);
   showFloatingReaction(emoji);
@@ -834,7 +723,7 @@ function sendReaction(emoji) {
 
 socket.on('reaction', (username, emoji) => {
   showFloatingReaction(emoji);
-  addMsg('System', `${username} ne ${emoji} react kiya!`, true);
+  addMsg('', username + ' ne ' + emoji + ' react kiya!', true);
 });
 
 function showFloatingReaction(emoji) {
@@ -842,34 +731,30 @@ function showFloatingReaction(emoji) {
   el.className = 'floating-reaction';
   el.textContent = emoji;
   el.style.left = Math.random() * 80 + 10 + '%';
-  el.style.bottom = '100px';
+  el.style.bottom = '150px';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2000);
 }
 
-// Screen Share
 async function getIceConfig() {
   try {
     const res = await fetch('https://watchpartyindia.metered.live/api/v1/turn/credentials?apiKey=d387e306830ec893aba90ed8755c83df891b');
-    return { iceServers: await res.json() };
+    return {iceServers: await res.json()};
   } catch(e) {
-    return { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    return {iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
   }
 }
 
 async function startScreenShare() {
-  try {
-    if (state.screenStream) { stopScreenShare(); return; }
-    socket.emit('screen-share-request', state.roomId);
-    showNotif('Screen share request bhej diya! Host ka wait karo...');
-  } catch(e) { showNotif('Error aaya!'); }
+  if (state.screenStream) { stopScreenShare(); return; }
+  socket.emit('screen-share-request', state.roomId);
+  showNotif('Screen share request bhej diya!');
 }
 
 socket.on('screen-share-request', (fromId, fromUsername) => {
-  const box = document.getElementById('share-request-box');
-  document.getElementById('share-req-text').textContent = `${fromUsername} screen share karna chahta hai!`;
+  document.getElementById('share-req-text').textContent = fromUsername + ' screen share karna chahta hai!';
   state.pendingShareId = fromId;
-  box.style.display = 'block';
+  document.getElementById('share-request-box').style.display = 'block';
 });
 
 function approveScreenShare() {
@@ -884,28 +769,27 @@ function rejectScreenShare() {
 
 socket.on('screen-share-approved', async () => {
   try {
-    state.screenStream = await navigator.mediaDevices.getDisplayMedia({video:{frameRate:15}, audio:true});
-    const localVideo = document.getElementById('screen-video');
-    localVideo.srcObject = state.screenStream;
-    localVideo.style.display = 'block';
+    state.screenStream = await navigator.mediaDevices.getDisplayMedia({video:{frameRate:15},audio:true});
+    const lv = document.getElementById('screen-video');
+    lv.srcObject = state.screenStream;
+    lv.style.display = 'block';
     document.getElementById('player-placeholder').style.display = 'none';
     document.getElementById('btn-screen').textContent = '🖥️ Band Karo';
     document.getElementById('btn-screen').style.background = 'var(--error)';
     socket.emit('screen-share-started', state.roomId);
     const iceConfig = await getIceConfig();
     state.peerConnection = new RTCPeerConnection(iceConfig);
-    state.screenStream.getTracks().forEach(track => state.peerConnection.addTrack(track, state.screenStream));
-    if (state.micStream) state.micStream.getTracks().forEach(track => state.peerConnection.addTrack(track, state.micStream));
+    state.screenStream.getTracks().forEach(t => state.peerConnection.addTrack(t, state.screenStream));
+    if (state.micStream) state.micStream.getTracks().forEach(t => state.peerConnection.addTrack(t, state.micStream));
     state.peerConnection.onicecandidate = (e) => { if (e.candidate) socket.emit('webrtc-ice', state.roomId, e.candidate); };
     const offer = await state.peerConnection.createOffer();
     await state.peerConnection.setLocalDescription(offer);
     socket.emit('webrtc-offer', state.roomId, offer);
     state.screenStream.getVideoTracks()[0].onended = stopScreenShare;
-    addMsg('System', '🖥️ Screen share shuru!', true);
-  } catch(e) { addMsg('System', '❌ Screen share nahi hua!', true); }
+  } catch(e) { addMsg('', 'Screen share nahi hua!', true); }
 });
 
-socket.on('screen-share-rejected', () => { showNotif('Screen share reject ho gaya!'); });
+socket.on('screen-share-rejected', () => showNotif('Screen share reject ho gaya!'));
 
 function stopScreenShare() {
   if (state.screenStream) state.screenStream.getTracks().forEach(t => t.stop());
@@ -942,28 +826,30 @@ socket.on('webrtc-ice', async (fromId, candidate) => {
   if (state.peerConnection) try { await state.peerConnection.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e) {}
 });
 
-socket.on('screen-share-started', (fromId, fromUsername) => { addMsg('System', `🖥️ ${fromUsername} screen share kar raha hai!`, true); });
+socket.on('screen-share-started', (fromId, fromUsername) => addMsg('', fromUsername + ' screen share kar raha hai!', true));
 socket.on('screen-share-stopped', () => {
   document.getElementById('remote-screen-video').style.display = 'none';
   document.getElementById('player-placeholder').style.display = 'flex';
-  addMsg('System', '🖥️ Screen share band ho gaya!', true);
+  addMsg('', 'Screen share band ho gaya!', true);
 });
 socket.on('peer-disconnected', () => {
   if (state.peerConnection) { state.peerConnection.close(); state.peerConnection = null; }
   document.getElementById('remote-screen-video').style.display = 'none';
 });
 
-// Mic
 async function toggleMic() {
   const btn = document.getElementById('btn-mic');
   if (!state.isMicOn) {
     try {
-      state.micStream = await navigator.mediaDevices.getUserMedia({audio:true});
+      state.micStream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
       state.isMicOn = true;
       btn.textContent = '🎙️ Mic OFF';
       btn.classList.add('active');
-      showNotif('Mic ON ho gaya! 🎙️');
-    } catch(e) { showNotif('Mic permission do!'); }
+      showNotif('Mic ON!');
+      if (state.peerConnection && state.peerConnection.signalingState !== 'closed') {
+        state.micStream.getTracks().forEach(t => state.peerConnection.addTrack(t, state.micStream));
+      }
+    } catch(e) { showNotif('Mic permission do browser mein!'); }
   } else {
     if (state.micStream) state.micStream.getTracks().forEach(t => t.stop());
     state.micStream = null;
@@ -973,7 +859,6 @@ async function toggleMic() {
   }
 }
 
-// Chat
 function sendMessage() {
   const msg = document.getElementById('msg-input').value.trim();
   if (!msg) return;
@@ -984,7 +869,7 @@ function sendMessage() {
 function addMsg(user, msg, isSystem) {
   const div = document.createElement('div');
   div.className = 'msg-item' + (isSystem ? ' msg-system' : '');
-  div.innerHTML = isSystem ? msg : `<span class="msg-user">${user}:</span> ${msg}`;
+  div.innerHTML = isSystem ? msg : '<span class="msg-user">' + user + ':</span> ' + msg;
   const messages = document.getElementById('messages');
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
@@ -993,18 +878,15 @@ function addMsg(user, msg, isSystem) {
 socket.on('chat-message', (user, msg) => addMsg(user, msg, false));
 
 socket.on('user-joined', (user, users) => {
-  const list = document.getElementById('users-list');
-  list.innerHTML = users.map(u => `<li><span>${state.avatar}</span>${u}</li>`).join('');
-  if (user !== state.username) addMsg('', `${user} join ho gaya! 🎉`, true);
+  document.getElementById('users-list').innerHTML = users.map(u => '<li>' + u + '</li>').join('');
+  if (user !== state.username) addMsg('', user + ' join ho gaya! 🎉', true);
 });
 
 socket.on('user-left', (user, users) => {
-  const list = document.getElementById('users-list');
-  list.innerHTML = users.map(u => `<li><span>${state.avatar}</span>${u}</li>`).join('');
-  addMsg('', `${user} chala gaya! 👋`, true);
+  document.getElementById('users-list').innerHTML = users.map(u => '<li>' + u + '</li>').join('');
+  addMsg('', user + ' offline  👋', true);
 });
 
-// Helpers
 function showMsg(el, msg) {
   el.textContent = msg;
   el.style.display = 'block';
@@ -1019,13 +901,12 @@ function showNotif(msg) {
   setTimeout(() => notif.remove(), 3500);
 }
 
-// Secret admin access - triple tap logo
 let tapCount = 0;
-document.querySelector('.home-logo')?.addEventListener('click', () => {
+document.getElementById('home-logo-btn').addEventListener('click', () => {
   tapCount++;
   if (tapCount >= 3) { tapCount = 0; openAdmin(); }
   setTimeout(() => { tapCount = 0; }, 1000);
 });
 </script>
 </body>
-</html>
+        </html>
