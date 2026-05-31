@@ -1,0 +1,14 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Watchparty india",
+  "orientation": "portrait",
+  "scope": "/",
+  "short_name": "Watch party",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "id": "watch-party-india",
+  "description": "Dosto ke saath YouTube sync karke movies dekho - Live chat, mic aur reactions ke saath",
+  "lang": "en"
+}
