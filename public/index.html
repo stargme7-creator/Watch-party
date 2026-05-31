@@ -492,3 +492,14 @@
     </footer>
 </body>
     </html>
+<!-- Pehle se majood script ke niche ise paste karo -->
+    <script>
+        window.addEventListener('click', () => {
+            const audios = document.querySelectorAll('audio');
+            audios.forEach(audio => {
+                if(audio.paused) audio.play();
+            });
+        }, { once: true });
+    </script>
+</body>
+</html>
