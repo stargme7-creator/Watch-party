@@ -12,6 +12,11 @@ app.use(express.urlencoded({ extended: true }));
 // Public folder serving
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Manifest fix
+app.get('/manifest.json', (req, res) => {
+    res.sendFile(path.join(__dirname, 'manifest.json'));
+});
+
 // 🗄️ REAL POSTGRES CONNECTION CONFIGURATION
 // Railway automatically Environment Variables provide karta hai (DATABASE_URL)
 const pool = new Pool({
