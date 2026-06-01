@@ -103,17 +103,26 @@ app.post('/api/register', async (req, res) => {
             return res.json({ success: false, message: 'Username ya Email pehle se register hai!' });
         }
 
-        // Naya user insert karo
+ // Naya user insert karo (is_verified column ke saath)
         await pool.query(
-            'INSERT INTO users (username, email, password) VALUES ($1, $2, $3)',
-            [username, email, password]
+            'INSERT INTO users (username, email, password, is_verified) VALUES ($1, $2, $3, $4)',
+            [username, email, password, false]
         );
+
+        // Email bhejne ka code
+        const mailOptions = {
+            from: process.env.GMAIL_USER,
+            to: email,
+            subject: 'Verify Your WatchParty Account',
+            html: `<p>Welcome! Account verify karne ke liye niche click karein:</p>
+                   <a href="https://YOUR-APP-NAME.railway.app/verify?email=${email}">Verify Email</a>`
+        };
+        transporter.sendMail(mailOptions);
 
         return res.json({ 
             success: true, 
-            username: username, 
-            token: 'wp-token-new-' + Date.now() 
-        });
+            message: 'Registered! Email check karke verify karein.' 
+        });       
 
     } catch (err) {
         console.error(err);
