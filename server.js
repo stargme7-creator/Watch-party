@@ -25,6 +25,13 @@ const pool = new Pool({
     ssl: {
         rejectUnauthorized: false // Railway Postgres ke liye zaroori hai
     }
+    const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS
+    }
+
 });
 
 // App chalu hote hi check karega ki users table hai ya nahi, nahi toh bana dega
