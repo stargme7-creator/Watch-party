@@ -115,7 +115,7 @@ app.post('/api/register', async (req, res) => {
             to: email,
             subject: 'Verify Your WatchParty Account',
             html: `<p>Welcome! Account verify karne ke liye niche click karein:</p>
-                   <a href="https://YOUR-APP-NAME.railway.app/verify?email=${email}">Verify Email</a>`
+                   <a href="https://watch-party-production-828b.up.railway.app/verify?email=${email}">Verify Email</a>`
         };
         transporter.sendMail(mailOptions);
 
