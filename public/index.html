@@ -194,6 +194,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password: pass })
+                credentials: 'include'
             });
             const data = await res.json();
             if(data.success) {
@@ -210,6 +211,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: user, email, password: pass })
+                credentials: 'include'
             });
             const data = await res.json();
             if(data.success) {
