@@ -121,8 +121,9 @@ app.post('/api/register', async (req, res) => {
 
         return res.json({ 
             success: true, 
+            username: username, // <--- Ye line yahan add karni hai
             message: 'Registered! Email check karke verify karein.' 
-        });       
+        });      
 
     } catch (err) {
         console.error(err);
