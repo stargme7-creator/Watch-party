@@ -4,6 +4,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 const { Pool } = require('pg'); // Postgres library
+const nodemailer = require('nodemailer');
 
 // Body parsing middleware
 app.use(express.json());
