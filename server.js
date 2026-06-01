@@ -19,19 +19,18 @@ app.get('/manifest.json', (req, res) => {
 });
 
 // 🗄️ REAL POSTGRES CONNECTION CONFIGURATION
-// Railway automatically Environment Variables provide karta hai (DATABASE_URL)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false // Railway Postgres ke liye zaroori hai
-    }
-    const transporter = nodemailer.createTransport({
+    ssl: { rejectUnauthorized: false }
+});
+
+// Email Transporter (Isse alag rakha hai taaki error na aaye)
+const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_PASS
     }
-
 });
 
 // App chalu hote hi check karega ki users table hai ya nahi, nahi toh bana dega
