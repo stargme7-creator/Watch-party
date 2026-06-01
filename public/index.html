@@ -187,39 +187,46 @@
             }
         }
 
-        async function handleLogin() {
-            const email = document.getElementById('login-email').value;
-            const pass = document.getElementById('login-pass').value;
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password: pass }), 
-                credentials: 'include'
-            });
-            const data = await res.json();
-            if(data.success) {
-                state.username = data.username;
-                showLobbyView();
-            } else { alert(data.message); }
-        }
+    async function handleLogin() {
+    alert("Login button kaam kar raha hai!");
+    const email = document.getElementById('login-email').value;
+    const pass = document.getElementById('login-pass').value;
+    const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass }),
+        credentials: 'include'
+    });
+    const data = await res.json();
+    if (data.success) {
+        state.username = data.username;
+        showLobbyView();
+    } else {
+        alert(data.message);
+    }
+    }
 
         async function handleRegister() {
-            const user = document.getElementById('reg-user').value;
-            const email = document.getElementById('reg-email').value;
-            const pass = document.getElementById('reg-pass').value;
-            const res = await fetch('/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: user, email, password: pass }), 
-                credentials: 'include'
-            });
-            const data = await res.json();
-            if(data.success) {
-                state.username = data.username;
-                showLobbyView();
-                alert("Account Created!");
-            } else { alert(data.message); }
+    const user = document.getElementById('reg-user').value;
+    const email = document.getElementById('reg-email').value;
+    const pass = document.getElementById('reg-pass').value;
+    const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, email, password: pass }),
+        credentials: 'include'
+    });
+    const data = await res.json();
+    if (data.success) {
+        state.username = data.username;
+        showLobbyView();
+        alert("Account Created!");
+    } else {
+        alert(data.message);
+    }
         }
+            
+
         
         async function handleLogout() {
             await fetch('/api/logout', { method: 'POST' });
@@ -231,7 +238,7 @@
             document.getElementById('register-form').classList.add('hidden');
             document.getElementById('auth-tabs').classList.add('hidden');
             document.getElementById('lobby-panel').classList.remove('hidden');
-            document.getElementById('welcome-user').innerText = state.username;
+          document.getElementById('welcome-user').innerText = state.username;
         }
 
         window.onload = async () => {
