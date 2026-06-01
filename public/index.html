@@ -233,7 +233,7 @@ navigator.serviceWorker.register('/sw.js');
             document.getElementById('welcome-user').innerText = state.username;
         }
 
-    const rtcConfig = { 
+    rtcConfig = { 
             iceServers: [ 
                 { urls: 'stun:stun.l.google.com:19302' },
                 {
