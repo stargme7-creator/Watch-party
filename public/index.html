@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <script>
-        if('serviceWorker' in navigator){
-            navigator.serviceWorker.register('/sw.js');
-        }
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register('/sw.js');
+}
     </script>
     <link rel="manifest" href="/manifest.json">
     <meta charset="UTF-8">
@@ -158,17 +158,13 @@
         
         const state = {
             roomId: '',
-            username: '',
+            username: localStorage.getItem('wp_username') || '',
+            token: localStorage.getItem('wp_token') || '',
             micActive: false,
             localStream: null
         };
 
-        const rtcConfig = { 
-            iceServers: [ 
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'turn:relay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
-            ] 
-        };    
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         function toggleAuthForm(mode) {
             const loginF = document.getElementById('login-form');
@@ -187,50 +183,46 @@
             }
         }
 
-    async function handleLogin() {
-    alert("Login button kaam kar raha hai!");
-    const email = document.getElementById('login-email').value;
-    const pass = document.getElementById('login-pass').value;
-    const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass }),
-        credentials: 'include'
-    });
-    const data = await res.json();
-    if (data.success) {
-        state.username = data.username;
-        showLobbyView();
-    } else {
-        alert(data.message);
-    }
-    }
+        async function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password: pass })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    state.username = data.username;
+                    state.token = data.token;
+                    localStorage.setItem('wp_username', data.username);
+                    localStorage.setItem('wp_token', data.token);
+                    showLobbyView();
+                } else { alert(data.message); }
+            } catch (err) { alert("Database error!"); }
+        }
 
         async function handleRegister() {
-    const user = document.getElementById('reg-user').value;
-    const email = document.getElementById('reg-email').value;
-    const pass = document.getElementById('reg-pass').value;
-    const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user, email, password: pass }),
-        credentials: 'include'
-    });
-    const data = await res.json();
-    if (data.success) {
-        state.username = data.username;
-        showLobbyView();
-        alert("Account Created!");
-    } else {
-        alert(data.message);
-    }
-        }
-            
-
-        
-        async function handleLogout() {
-            await fetch('/api/logout', { method: 'POST' });
-            location.reload();
+            const user = document.getElementById('reg-user').value;
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-pass').value;
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, email, password: pass })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    state.username = data.username;
+                    state.token = data.token;
+                    localStorage.setItem('wp_username', data.username);
+                    localStorage.setItem('wp_token', data.token);
+                    showLobbyView();
+                    alert("Account Created!");
+                } else { alert(data.message); }
+            } catch (err) { alert("Registration failed!"); }
         }
 
         function showLobbyView() {
@@ -238,17 +230,19 @@
             document.getElementById('register-form').classList.add('hidden');
             document.getElementById('auth-tabs').classList.add('hidden');
             document.getElementById('lobby-panel').classList.remove('hidden');
-          document.getElementById('welcome-user').innerText = state.username;
+            document.getElementById('welcome-user').innerText = state.username;
         }
 
-        window.onload = async () => {
-            const res = await fetch('/api/me');
-            const data = await res.json();
-            if(data.loggedIn) {
-                state.username = data.username;
-                showLobbyView();
-            }
-        };
+    rtcConfig = { 
+            iceServers: [ 
+                { urls: 'stun:stun.l.google.com:19302' },
+                {
+                    urls: 'turn:relay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                }
+            ] 
+        };    
 
         function enterPartyRoom(action) {
             if(action === 'create') {
@@ -500,11 +494,24 @@
             }
             socket.on('room-users-update', (data) => { if(data && data.users) updateOnlineUsersList(data.users); });
         }
+
+        window.addEventListener('DOMContentLoaded', () => { if (state.token && state.username) showLobbyView(); });
     </script>
     <footer>
-        <p>&copy; 2026 Watch Party App. 
-            <a href="https://www.termsfeed.com/live/bfae1679-234e-4d2b-bbd4-21438b92aa79" target="_blank">Privacy Policy</a>
-        </p>
+    <p>&copy; 2026 Watch Party App. 
+        <a href="https://www.termsfeed.com/live/bfae1679-234e-4d2b-bbd4-21438b92aa79" target="_blank">Privacy Policy</a>
+    </p>
     </footer>
 </body>
     </html>
+<!-- Pehle se majood script ke niche ise paste karo -->
+    <script>
+        window.addEventListener('click', () => {
+            const audios = document.querySelectorAll('audio');
+            audios.forEach(audio => {
+                if(audio.paused) audio.play();
+            });
+        }, { once: true });
+    </script>
+</body>
+</html>
