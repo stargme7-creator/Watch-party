@@ -3,12 +3,20 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
-const { Pool } = require('pg'); // Postgres library
+const { Pool } = require('pg');
 const nodemailer = require('nodemailer');
+const session = require('express-session'); // API ke liye session zaruri hai
 
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session middleware - LocalStorage hatane ke liye ye zaroori hai
+app.use(session({
+    secret: 'watchparty-secret-key',
+    resave: false,
+    saveUninitialized: false
+}));
 
 // Public folder serving
 app.use(express.static(path.join(__dirname, 'public')));
@@ -24,7 +32,7 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// Email Transporter (Isse alag rakha hai taaki error na aaye)
+// Email Transporter
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -33,7 +41,6 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// App chalu hote hi check karega ki users table hai ya nahi, nahi toh bana dega
 const initDb = async () => {
     try {
         await pool.query(`
@@ -61,177 +68,106 @@ app.get('/', (req, res) => {
 // 🔐 REAL POSTGRES AUTH APIs
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
-    if (!email || !password) {
-        return res.json({ success: false, message: 'Email aur Password zaroori hai!' });
-    }
-
     try {
-        // Database me user dhoondo
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        
         if (result.rows.length > 0) {
             const user = result.rows[0];
-            // Plain text password match check (Professional setup me bcrypt use hota hai, par abhi simple match)
             if (user.password === password) {
-                return res.json({ 
-                    success: true, 
-                    username: user.username, 
-                    token: 'wp-token-' + user.id + '-' + Date.now() 
-                });
-            } else {
-                return res.json({ success: false, message: 'Password galat hai!' });
+                req.session.user = { username: user.username }; // LocalStorage ki jagah Session
+                return res.json({ success: true, username: user.username });
             }
-        } else {
-            return res.json({ success: false, message: 'Account nahi mila! Pehle Register karein.' });
+            return res.json({ success: false, message: 'Password galat hai!' });
         }
+        return res.json({ success: false, message: 'Account nahi mila!' });
     } catch (err) {
-        console.error(err);
         return res.json({ success: false, message: 'Server Database Error!' });
     }
 });
 
+// Session check karne ke liye API
+app.get('/api/me', (req, res) => {
+    if (req.session.user) {
+        res.json({ loggedIn: true, username: req.session.user.username });
+    } else {
+        res.json({ loggedIn: false });
+    }
+});
+
+// Logout API
+app.post('/api/logout', (req, res) => {
+    req.session.destroy();
+    res.json({ success: true });
+});
+
 app.post('/api/register', async (req, res) => {
     const { username, email, password } = req.body;
-    if (!username || !email || !password) {
-        return res.json({ success: false, message: 'Saari fields bharna zaroori hai!' });
-    }
-
     try {
-        // Check karo ki email ya username pehle se toh nahi hai
         const userExists = await pool.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
-        if (userExists.rows.length > 0) {
-            return res.json({ success: false, message: 'Username ya Email pehle se register hai!' });
-        }
+        if (userExists.rows.length > 0) return res.json({ success: false, message: 'Exists!' });
 
- // Naya user insert karo (is_verified column ke saath)
-        await pool.query(
-            'INSERT INTO users (username, email, password, is_verified) VALUES ($1, $2, $3, $4)',
-            [username, email, password, false]
-        );
-
-        // Email bhejne ka code
+        await pool.query('INSERT INTO users (username, email, password, is_verified) VALUES ($1, $2, $3, $4)', [username, email, password, false]);
+        
         const mailOptions = {
             from: process.env.GMAIL_USER,
             to: email,
             subject: 'Verify Your WatchParty Account',
-            html: `<p>Welcome! Account verify karne ke liye niche click karein:</p>
-                   <a href="https://watch-party-production-828b.up.railway.app/verify?email=${email}">Verify Email</a>`
+            html: `<a href="https://watch-party-production-828b.up.railway.app/verify?email=${email}">Verify Email</a>`
         };
         transporter.sendMail(mailOptions);
-
-        return res.json({ 
-            success: true, 
-            username: username, // <--- Ye line yahan add karni hai
-            message: 'Registered! Email check karke verify karein.' 
-        });      
-
-    } catch (err) {
-        console.error(err);
-        return res.json({ success: false, message: 'Registration Database Error!' });
-    }
+        return res.json({ success: true, username: username });
+    } catch (err) { return res.json({ success: false, message: 'Error!' }); }
 });
 
-// Rooms ka live data track karne ke liye object (In-Memory for WebRTC & Sync)
+// SOCKET.IO (Jaisa tha waisa hi hai)
 const activeRooms = {}; 
-
 io.on('connection', (socket) => {
-    console.log('Naya user connect hua:', socket.id);
-
-    // 1. JOIN ROOM SYSTEM (WITH CLEANUP LOGIC)
     socket.on('join-room', ({ roomId, username }) => {
-        if (!activeRooms[roomId]) {
-            activeRooms[roomId] = { users: [], currentVideo: null };
-        }
-
+        if (!activeRooms[roomId]) activeRooms[roomId] = { users: [], currentVideo: null };
         activeRooms[roomId].users = activeRooms[roomId].users.filter(u => u.username !== username);
-        
-        const userObj = { id: socket.id, username: username };
-        activeRooms[roomId].users.push(userObj);
-
+        activeRooms[roomId].users.push({ id: socket.id, username: username });
         socket.join(roomId);
         socket.roomId = roomId;
         socket.username = username;
-
-        console.log(`${username} joined room: ${roomId}`);
-
         socket.to(roomId).emit('new-peer', socket.id);
-
         const usersList = activeRooms[roomId].users.map(u => u.username);
         io.to(roomId).emit('room-users-update', { users: usersList });
-
-        if (activeRooms[roomId].currentVideo) {
-            socket.emit('video-sync', activeRooms[roomId].currentVideo);
-        }
+        if (activeRooms[roomId].currentVideo) socket.emit('video-sync', activeRooms[roomId].currentVideo);
     });
 
-    // 2. VIDEO SYNC ENGINE
     socket.on('video-sync', (roomId, data) => {
         if (activeRooms[roomId]) {
-            if (data.action === 'loadNewVideo') {
-                activeRooms[roomId].currentVideo = data;
-            } else if (activeRooms[roomId].currentVideo) {
-                activeRooms[roomId].currentVideo.action = data.action;
-                activeRooms[roomId].currentVideo.time = data.time;
-            }
+            if (data.action === 'loadNewVideo') activeRooms[roomId].currentVideo = data;
+            else if (activeRooms[roomId].currentVideo) { activeRooms[roomId].currentVideo.action = data.action; activeRooms[roomId].currentVideo.time = data.time; }
             socket.to(roomId).emit('video-sync', data);
         }
     });
 
-    // 3. CHAT & REACTION
-    socket.on('chat-message', (roomId, username, msg) => {
-        io.to(roomId).emit('receive-chat', { user: username, msg: msg });
-    });
+    socket.on('chat-message', (roomId, username, msg) => { io.to(roomId).emit('receive-chat', { user: username, msg: msg }); });
+    socket.on('reaction', (roomId, emoji) => { socket.to(roomId).emit('receive-reaction', emoji); });
+    socket.on('webrtc-offer', (targetId, offer) => { socket.to(targetId).emit('webrtc-offer', socket.id, offer); });
+    socket.on('webrtc-answer', (targetId, answer) => { socket.to(targetId).emit('webrtc-answer', socket.id, answer); });
+    socket.on('webrtc-ice', (targetId, candidate) => { socket.to(targetId).emit('webrtc-ice', socket.id, candidate); });
 
-    socket.on('reaction', (roomId, emoji) => {
-        socket.to(roomId).emit('receive-reaction', emoji);
-    });
-
-    // 4. WebRTC VOICE SIGNALING
-    socket.on('webrtc-offer', (targetId, offer) => {
-        socket.to(targetId).emit('webrtc-offer', socket.id, offer);
-    });
-
-    socket.on('webrtc-answer', (targetId, answer) => {
-        socket.to(targetId).emit('webrtc-answer', socket.id, answer);
-    });
-
-    socket.on('webrtc-ice', (targetId, candidate) => {
-        socket.to(targetId).emit('webrtc-ice', socket.id, candidate);
-    });
-
-    // 5. CLEANUP ON DISCONNECT
     const handleUserLeave = (socketInstance) => {
         const rId = socketInstance.roomId;
         if (rId && activeRooms[rId]) {
             activeRooms[rId].users = activeRooms[rId].users.filter(u => u.id !== socketInstance.id);
             socketInstance.to(rId).emit('peer-disconnected', socketInstance.id);
-            
             const usersList = activeRooms[rId].users.map(u => u.username);
             io.to(rId).emit('room-users-update', { users: usersList });
-
-            if (activeRooms[rId].users.length === 0) {
-                delete activeRooms[rId];
-            }
+            if (activeRooms[rId].users.length === 0) delete activeRooms[rId];
         }
     };
 
-    socket.on('leave-room', (roomId) => {
-        handleUserLeave(socket);
-        socket.leave(roomId);
-    });
+    socket.on('leave-room', (roomId) => { handleUserLeave(socket); socket.leave(roomId); });
+    socket.on('disconnect', () => { handleUserLeave(socket); });
+});
 
-    socket.on('disconnect', () => {
-        handleUserLeave(socket);
-    });
+app.get('/verify', async (req, res) => {
+    const { email } = req.query;
+    await pool.query('UPDATE users SET is_verified = TRUE WHERE email = $1', [email]);
+    res.send("<h1>Verified!</h1>");
 });
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server live on port ${PORT}`));
-// Verification route
-app.get('/verify', async (req, res) => {
-    const { email } = req.query;
-    try {
-        await pool.query('UPDATE users SET is_verified = TRUE WHERE email = $1', [email]);
-        res.send("<h1>Verified!</h1><p>Aapka account verify ho gaya hai. Ab aap login kar sakte hain.</p>");
-    } catch (err) { res.status(500).send("Verification Failed."); }
-});
