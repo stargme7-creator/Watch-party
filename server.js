@@ -226,3 +226,11 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+// Verification route
+app.get('/verify', async (req, res) => {
+    const { email } = req.query;
+    try {
+        await pool.query('UPDATE users SET is_verified = TRUE WHERE email = $1', [email]);
+        res.send("<h1>Verified!</h1><p>Aapka account verify ho gaya hai. Ab aap login kar sakte hain.</p>");
+    } catch (err) { res.status(500).send("Verification Failed."); }
+});
