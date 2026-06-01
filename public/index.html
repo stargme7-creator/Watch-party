@@ -233,9 +233,16 @@ navigator.serviceWorker.register('/sw.js');
             document.getElementById('welcome-user').innerText = state.username;
         }
 
-        function handleLogout() {
-            localStorage.clear();
-            window.location.reload();
+        const rtcConfig = { 
+    iceServers: [ 
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+            urls: 'turn:relay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        }
+    ] 
+};
         }
 
         function enterPartyRoom(action) {
