@@ -3,31 +3,14 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
-const { Pool } = require('pg');
+const { Pool } = require('pg'); // Postgres library
 const nodemailer = require('nodemailer');
-const session = require('express-session'); // Session setup
 
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware - LocalStorage hatane ke liye (Session Memory mein)
-app.use(session({
-    secret: 'watchparty-secret-key',
-    resave: false,
-    saveUninitialized: false
-}));
-
-app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    if (req.method === 'OPTIONS') return res.sendStatus(200);
-    next();
-});
-
-    / Public folder serving
+// Public folder serving
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Manifest fix
@@ -41,7 +24,7 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// Email Transporter
+// Email Transporter (Isse alag rakha hai taaki error na aaye)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -50,6 +33,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+// App chalu hote hi check karega ki users table hai ya nahi, nahi toh bana dega
 const initDb = async () => {
     try {
         await pool.query(`
@@ -82,13 +66,18 @@ app.post('/api/login', async (req, res) => {
     }
 
     try {
+        // Database me user dhoondo
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         
         if (result.rows.length > 0) {
             const user = result.rows[0];
+            // Plain text password match check (Professional setup me bcrypt use hota hai, par abhi simple match)
             if (user.password === password) {
-                req.session.user = { username: user.username }; // LocalStorage ki jagah Session
-                return res.json({ success: true, username: user.username });
+                return res.json({ 
+                    success: true, 
+                    username: user.username, 
+                    token: 'wp-token-' + user.id + '-' + Date.now() 
+                });
             } else {
                 return res.json({ success: false, message: 'Password galat hai!' });
             }
@@ -101,21 +90,6 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Session check karne ke liye API
-app.get('/api/me', (req, res) => {
-    if (req.session.user) {
-        res.json({ loggedIn: true, username: req.session.user.username });
-    } else {
-        res.json({ loggedIn: false });
-    }
-});
-
-// Logout API
-app.post('/api/logout', (req, res) => {
-    req.session.destroy();
-    res.json({ success: true });
-});
-
 app.post('/api/register', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !email || !password) {
@@ -123,16 +97,19 @@ app.post('/api/register', async (req, res) => {
     }
 
     try {
+        // Check karo ki email ya username pehle se toh nahi hai
         const userExists = await pool.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
         if (userExists.rows.length > 0) {
             return res.json({ success: false, message: 'Username ya Email pehle se register hai!' });
         }
 
+ // Naya user insert karo (is_verified column ke saath)
         await pool.query(
             'INSERT INTO users (username, email, password, is_verified) VALUES ($1, $2, $3, $4)',
             [username, email, password, false]
         );
 
+        // Email bhejne ka code
         const mailOptions = {
             from: process.env.GMAIL_USER,
             to: email,
@@ -144,7 +121,7 @@ app.post('/api/register', async (req, res) => {
 
         return res.json({ 
             success: true, 
-            username: username, 
+            username: username, // <--- Ye line yahan add karni hai
             message: 'Registered! Email check karke verify karein.' 
         });      
 
@@ -154,27 +131,40 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
+// Rooms ka live data track karne ke liye object (In-Memory for WebRTC & Sync)
 const activeRooms = {}; 
 
 io.on('connection', (socket) => {
+    console.log('Naya user connect hua:', socket.id);
+
+    // 1. JOIN ROOM SYSTEM (WITH CLEANUP LOGIC)
     socket.on('join-room', ({ roomId, username }) => {
         if (!activeRooms[roomId]) {
             activeRooms[roomId] = { users: [], currentVideo: null };
         }
+
         activeRooms[roomId].users = activeRooms[roomId].users.filter(u => u.username !== username);
+        
         const userObj = { id: socket.id, username: username };
         activeRooms[roomId].users.push(userObj);
+
         socket.join(roomId);
         socket.roomId = roomId;
         socket.username = username;
+
+        console.log(`${username} joined room: ${roomId}`);
+
         socket.to(roomId).emit('new-peer', socket.id);
+
         const usersList = activeRooms[roomId].users.map(u => u.username);
         io.to(roomId).emit('room-users-update', { users: usersList });
+
         if (activeRooms[roomId].currentVideo) {
             socket.emit('video-sync', activeRooms[roomId].currentVideo);
         }
     });
 
+    // 2. VIDEO SYNC ENGINE
     socket.on('video-sync', (roomId, data) => {
         if (activeRooms[roomId]) {
             if (data.action === 'loadNewVideo') {
@@ -187,6 +177,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 3. CHAT & REACTION
     socket.on('chat-message', (roomId, username, msg) => {
         io.to(roomId).emit('receive-chat', { user: username, msg: msg });
     });
@@ -195,6 +186,7 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('receive-reaction', emoji);
     });
 
+    // 4. WebRTC VOICE SIGNALING
     socket.on('webrtc-offer', (targetId, offer) => {
         socket.to(targetId).emit('webrtc-offer', socket.id, offer);
     });
@@ -207,13 +199,16 @@ io.on('connection', (socket) => {
         socket.to(targetId).emit('webrtc-ice', socket.id, candidate);
     });
 
+    // 5. CLEANUP ON DISCONNECT
     const handleUserLeave = (socketInstance) => {
         const rId = socketInstance.roomId;
         if (rId && activeRooms[rId]) {
             activeRooms[rId].users = activeRooms[rId].users.filter(u => u.id !== socketInstance.id);
             socketInstance.to(rId).emit('peer-disconnected', socketInstance.id);
+            
             const usersList = activeRooms[rId].users.map(u => u.username);
             io.to(rId).emit('room-users-update', { users: usersList });
+
             if (activeRooms[rId].users.length === 0) {
                 delete activeRooms[rId];
             }
@@ -232,7 +227,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server live on port ${PORT}`));
-
+// Verification route
 app.get('/verify', async (req, res) => {
     const { email } = req.query;
     try {
