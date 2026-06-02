@@ -202,7 +202,16 @@ navigator.serviceWorker.register('/sw.js');
                 } else { alert(data.message); }
             } catch (err) { alert("Database error!"); }
         }
-
+function handleLogout() {
+    localStorage.removeItem('wp_username');
+    localStorage.removeItem('wp_token');
+    state.username = '';
+    state.token = '';
+    document.getElementById('lobby-panel').classList.add('hidden');
+    document.getElementById('auth-tabs').classList.remove('hidden');
+    document.getElementById('login-form').classList.remove('hidden');
+    document.getElementById('register-form').classList.add('hidden');
+}
         async function handleRegister() {
             const user = document.getElementById('reg-user').value;
             const email = document.getElementById('reg-email').value;
