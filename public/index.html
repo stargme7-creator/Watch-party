@@ -487,6 +487,11 @@ function handleLogout() {
                     if (data.action === 'play') { ytPlayer.playVideo(); }
                     else if (data.action === 'pause') { ytPlayer.pauseVideo(); }
                 } 
+                    else if (activePlayerType === 'dailymotion' && window.dmPlayer) {
+    if (Math.abs(window.dmPlayer.currentTime - data.time) > 1.5) { window.dmPlayer.seek(data.time); }
+    if (data.action === 'play') { window.dmPlayer.play(); }
+    else if (data.action === 'pause') { window.dmPlayer.pause(); }
+                    }
                 else if (activePlayerType === 'raw') {
                     const videoEl = document.getElementById('raw-video-element');
                     if (videoEl) {
