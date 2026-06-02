@@ -373,6 +373,9 @@ return null;
                     playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'controls': 1, 'rel': 0 },
                     events: { 'onStateChange': onYouTubePlayerStateChange }
                 });
+                } else if (meta.type === 'dailymotion') {
+    activePlayerType = 'dailymotion';
+    container.innerHTML = `<iframe id="dm-player" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1&mute=0" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
             } else if (meta.type === 'raw') {
                 activePlayerType = 'raw';
                 container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
