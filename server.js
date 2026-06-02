@@ -121,7 +121,8 @@ app.post('/api/register', async (req, res) => {
 
         return res.json({ 
             success: true, 
-            username: username, // <--- Ye line yahan add karni hai
+            username: username, //
+            token: 'wp-token-new-' + Date.now(),
             message: 'Registered! Email check karke verify karein.' 
         });      
 
