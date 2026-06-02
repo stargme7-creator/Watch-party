@@ -341,14 +341,12 @@ navigator.serviceWorker.register('/sw.js');
             return pc;
         }
 
-        function parseVideoId(url) {
-            if (!url) return null;
-            url = url.trim();
-            if (url.match(/\.(mp4|webm|ogg|m3u8)($|\?)/i)) return { type: 'raw', id: url };
-            const ytRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            const ytMatch = url.match(ytRegex);
-            if (ytMatch && ytMatch[2].length === 11) return { type: 'youtube', id: ytMatch[2] };
-            return null;
+        if (ytMatch && ytMatch[2].length === 11) return { type: 'youtube', id: ytMatch[2] };
+
+const dmRegex = /(?:dailymotion\.com\/(?:video|hub)\/|dai\.ly\/)([a-zA-Z0-9]+)/;
+const dmMatch = url.match(dmRegex);
+if (dmMatch) return { type: 'dailymotion', id: dmMatch[1] };
+return null; 
         }
 
         function playNewVideoFromInput() {
