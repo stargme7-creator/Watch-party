@@ -388,7 +388,30 @@ function handleLogout() {
                 });
                 } else if (meta.type === 'dailymotion') {
     activePlayerType = 'dailymotion';
-    container.innerHTML = `<iframe id="dm-player" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1&mute=0" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
+    container.innerHTML = `<div id="dm-player-container" class="w-full h-full"></div>`;
+    const dmScript = document.createElement('script');
+    dmScript.src = 'https://api.dmcdn.net/all.js';
+    dmScript.onload = () => {
+        window.dmPlayer = DM.player(document.getElementById('dm-player-container'), {
+            video: meta.id,
+            width: '100%',
+            height: '100%',
+            params: { autoplay: true, mute: false }
+        });
+        window.dmPlayer.addEventListener('playing', () => {
+            if (ignoreSyncEvents) return;
+            socket.emit('video-sync', state.roomId, { action: 'play', time: window.dmPlayer.currentTime });
+        });
+        window.dmPlayer.addEventListener('pause', () => {
+            if (ignoreSyncEvents) return;
+            socket.emit('video-sync', state.roomId, { action: 'pause', time: window.dmPlayer.currentTime });
+        });
+        window.dmPlayer.addEventListener('seeked', () => {
+            if (ignoreSyncEvents) return;
+            socket.emit('video-sync', state.roomId, { action: 'seek', time: window.dmPlayer.currentTime });
+        });
+    };
+    document.head.appendChild(dmScript);
             } else if (meta.type === 'raw') {
                 activePlayerType = 'raw';
                 container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
