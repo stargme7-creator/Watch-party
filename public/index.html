@@ -392,6 +392,7 @@ function handleLogout() {
     const dmScript = document.createElement('script');
     dmScript.src = 'https://api.dmcdn.net/all.js';
     dmScript.onload = () => {
+        setTimeout(() => {
         window.dmPlayer = DM.player(document.getElementById('dm-player-container'), {
             video: meta.id,
             width: '100%',
@@ -410,6 +411,7 @@ function handleLogout() {
             if (ignoreSyncEvents) return;
             socket.emit('video-sync', state.roomId, { action: 'seek', time: window.dmPlayer.currentTime });
         });
+            }, 1000);
     };
     document.head.appendChild(dmScript);
             } else if (meta.type === 'raw') {
