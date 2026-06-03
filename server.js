@@ -73,6 +73,9 @@ app.post('/api/login', async (req, res) => {
             const user = result.rows[0];
             // Plain text password match check (Professional setup me bcrypt use hota hai, par abhi simple match)
             if (user.password === password) {
+               if (!user.is_verified) {
+    return res.json({ success: false, message: 'Pehle email verify karein!' });
+               } 
                 return res.json({ 
                     success: true, 
                     username: user.username, 
