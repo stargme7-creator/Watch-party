@@ -149,6 +149,8 @@
         let dmPlayer = null;          // Dailymotion player object
         let activePlayerType = null;  // 'youtube', 'dailymotion', 'raw'
         let ignoreSyncEvents = false;
+        let dmReady = false;           // ✅ Flag to ensure player is ready
+        let dmPendingCommand = null;   // ✅ Retry command if player not ready
         const peers = {};
 
         const state = {
@@ -365,13 +367,15 @@
             }
         }
 
-        // ------------------- DAILYMOTION PLAYER (100% WORKING) -------------------
+        // ------------------- DAILYMOTION PLAYER (100% FIXED) -------------------
         function initDailymotionPlayer(videoId) {
             // Destroy existing player if any
             if (dmPlayer && typeof dmPlayer.destroy === 'function') {
                 dmPlayer.destroy();
                 dmPlayer = null;
             }
+            dmReady = false;  // reset ready flag
+            
             const container = document.createElement('div');
             container.id = 'dm-player-container';
             container.className = 'w-full h-full';
@@ -384,28 +388,36 @@
                     autoplay: true,
                     mute: false,
                     controls: true,
-                    'api': true   // Enables JavaScript API
+                    'api': true
                 },
                 events: {
                     apiready: function() {
                         console.log('DM Player API ready');
+                        dmReady = true;
                         // Attach event listeners
                         dmPlayer.addEventListener('play', () => {
                             if (ignoreSyncEvents) return;
                             dmPlayer.currentTime().then(t => {
                                 socket.emit('video-sync', state.roomId, { action: 'play', time: t });
-                            });
+                            }).catch(e => console.warn("DM play event error:", e));
                         });
                         dmPlayer.addEventListener('pause', () => {
                             if (ignoreSyncEvents) return;
                             dmPlayer.currentTime().then(t => {
                                 socket.emit('video-sync', state.roomId, { action: 'pause', time: t });
-                            });
+                            }).catch(e => console.warn("DM pause event error:", e));
                         });
                         dmPlayer.addEventListener('seek', (event) => {
                             if (ignoreSyncEvents) return;
                             socket.emit('video-sync', state.roomId, { action: 'seek', time: event.time });
                         });
+                        
+                        // If there was a pending command, execute it now
+                        if (dmPendingCommand) {
+                            applyVideoSync(dmPendingCommand).then(() => {
+                                dmPendingCommand = null;
+                            }).catch(e => console.warn("Pending command failed", e));
+                        }
                     }
                 }
             });
@@ -416,6 +428,8 @@
                 dmPlayer.destroy();
                 dmPlayer = null;
             }
+            dmReady = false;
+            dmPendingCommand = null;
         }
 
         // ------------------- RAW VIDEO PLAYER -------------------
@@ -463,8 +477,15 @@
             setTimeout(() => showOverlay(false), 800);
         }
 
-        // ------------------- SYNC FROM SOCKET -------------------
+        // ------------------- SYNC FROM SOCKET (with retry) -------------------
         async function applyVideoSync(data) {
+            // If Dailymotion player is not ready yet, store command for later
+            if (activePlayerType === 'dailymotion' && (!dmPlayer || !dmReady)) {
+                console.log("DM not ready, storing command for later");
+                dmPendingCommand = data;
+                return;
+            }
+            
             ignoreSyncEvents = true;
             try {
                 if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
@@ -473,7 +494,7 @@
                     if (data.action === 'play') ytPlayer.playVideo();
                     else if (data.action === 'pause') ytPlayer.pauseVideo();
                 } 
-                else if (activePlayerType === 'dailymotion' && dmPlayer) {
+                else if (activePlayerType === 'dailymotion' && dmPlayer && dmReady) {
                     const currentTime = await dmPlayer.currentTime();
                     if (Math.abs(currentTime - data.time) > 1.5) await dmPlayer.seek(data.time);
                     if (data.action === 'play') await dmPlayer.play();
@@ -487,7 +508,15 @@
                         else if (data.action === 'pause') videoEl.pause();
                     }
                 }
-            } catch(e) { console.warn("Sync error:", e); }
+            } catch(e) { 
+                console.warn("Sync error:", e);
+                // Retry after 500ms
+                setTimeout(() => {
+                    if (activePlayerType === 'dailymotion' && dmPlayer && !ignoreSyncEvents) {
+                        applyVideoSync(data).catch(e => console.warn("Retry failed", e));
+                    }
+                }, 500);
+            }
             setTimeout(() => { ignoreSyncEvents = false; }, 400);
         }
 
@@ -570,4 +599,4 @@
         </p>
     </footer>
 </body>
-    </html>
+</html>
