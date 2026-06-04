@@ -25,14 +25,8 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-const transporter = nodemailer.createTransport({
-    host: "sandbox.smtp.mailtrap.io", 
-    port: 2525,                     
-    auth: {
-        user: "YOUR_MAILTRAP_USERNAME",
-        pass: "YOUR_MAILTRAP_PASSWORD"  
-    }
-});
+// const transporter = nodemailer.createTransport({ ... }); 
+// Isko comment kar do ya delete kar do taaki email na bheje.
 
 const initDb = async () => {
     try {
@@ -42,7 +36,7 @@ const initDb = async () => {
                 username VARCHAR(50) UNIQUE NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
-                is_verified BOOLEAN DEFAULT FALSE,
+                is_verified BOOLEAN DEFAULT TRUE,
                 verify_token VARCHAR(255),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
