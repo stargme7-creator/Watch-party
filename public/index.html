@@ -368,25 +368,99 @@ navigator.serviceWorker.register('/sw.js');
             } else if (meta.type === 'dailymotion') {
                 activePlayerType = 'dailymotion';
                 container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1&api=postMessage" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
-                window.addEventListener('message', (e) => {
-                    if (!e.data || typeof e.data !== 'string') return;
-                    try {
-                        const msg = JSON.parse(e.data);
-                        if (msg.event === 'playing') {
-                            if (ignoreSyncEvents) return;
-                            socket.emit('video-sync', state.roomId, { action: 'play', time: msg.time || 0 });
-                        } else if (msg.event === 'pause') {
-                            if (ignoreSyncEvents) return;
-                            socket.emit('video-sync', state.roomId, { action: 'pause', time: msg.time || 0 });
-                        }
-                    } catch(err) {}
-                });
+                setupDailymotionListeners();
             } else if (meta.type === 'raw') {
                 activePlayerType = 'raw';
                 container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
                 setupRawVideoListeners();
             }
             setTimeout(() => showOverlay(false), 800);
+        }
+
+        // DAILYMOTION FIXED LISTENERS - No JSON.parse error, proper sync
+        let dmCurrentTime = 0;
+        let dmStateCheckInterval = null;
+        
+        function setupDailymotionListeners() {
+            const dmIframe = document.getElementById('dm-iframe');
+            if (!dmIframe) return;
+            
+            // Clear previous interval
+            if (dmStateCheckInterval) clearInterval(dmStateCheckInterval);
+            
+            // Send play/pause commands and track time
+            window.dmEventsHandler = function(event) {
+                if (!event.data || typeof event.data !== 'string') return;
+                
+                // Dailymotion sends messages like: "play", "pause", "timeupdate", etc.
+                const msg = event.data;
+                
+                if (msg === 'playing') {
+                    if (ignoreSyncEvents) return;
+                    // Get current time from iframe
+                    dmIframe.contentWindow.postMessage('{"command":"getCurrentTime"}', '*');
+                    setTimeout(() => {
+                        socket.emit('video-sync', state.roomId, { action: 'play', time: dmCurrentTime });
+                    }, 50);
+                } 
+                else if (msg === 'pause') {
+                    if (ignoreSyncEvents) return;
+                    dmIframe.contentWindow.postMessage('{"command":"getCurrentTime"}', '*');
+                    setTimeout(() => {
+                        socket.emit('video-sync', state.roomId, { action: 'pause', time: dmCurrentTime });
+                    }, 50);
+                }
+            };
+            
+            window.addEventListener('message', window.dmEventsHandler);
+            
+            // Time tracking interval (every 2 seconds to not spam)
+            const timeInterval = setInterval(() => {
+                if (activePlayerType === 'dailymotion' && !ignoreSyncEvents) {
+                    const iframe = document.getElementById('dm-iframe');
+                    if (iframe && iframe.contentWindow) {
+                        iframe.contentWindow.postMessage('{"command":"getCurrentTime"}', '*');
+                    }
+                }
+            }, 2000);
+            
+            // Listen for time response from Dailymotion
+            window.dmTimeHandler = function(event) {
+                if (!event.data || typeof event.data !== 'string') return;
+                try {
+                    // Dailymotion returns time in format like: {"currentTime": 123.45}
+                    const parsed = JSON.parse(event.data);
+                    if (parsed.currentTime !== undefined) {
+                        dmCurrentTime = parsed.currentTime;
+                    }
+                } catch(e) {
+                    // Not JSON, ignore - THIS FIXES THE FEEDBACK ERROR
+                }
+            };
+            window.addEventListener('message', window.dmTimeHandler);
+            
+            // Store interval to clear later
+            window.dmTimeInterval = timeInterval;
+        }
+        
+        // Cleanup Dailymotion listeners
+        function cleanupDailymotionListeners() {
+            if (window.dmEventsHandler) {
+                window.removeEventListener('message', window.dmEventsHandler);
+                window.dmEventsHandler = null;
+            }
+            if (window.dmTimeHandler) {
+                window.removeEventListener('message', window.dmTimeHandler);
+                window.dmTimeHandler = null;
+            }
+            if (window.dmTimeInterval) {
+                clearInterval(window.dmTimeInterval);
+                window.dmTimeInterval = null;
+            }
+            if (dmStateCheckInterval) {
+                clearInterval(dmStateCheckInterval);
+                dmStateCheckInterval = null;
+            }
         }
 
         function onYouTubePlayerStateChange(event) {
@@ -442,7 +516,10 @@ navigator.serviceWorker.register('/sw.js');
             socket.on('video-sync', (data) => {
                 if (!data) return;
                 if (data.action === 'loadNewVideo' && data.meta) {
-                    showOverlay(true); renderActivePlayer(data.meta); return;
+                    showOverlay(true);
+                    if (activePlayerType === 'dailymotion') cleanupDailymotionListeners();
+                    renderActivePlayer(data.meta);
+                    return;
                 }
                 ignoreSyncEvents = true;
                 if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
@@ -452,9 +529,16 @@ navigator.serviceWorker.register('/sw.js');
                     else if (data.action === 'pause') { ytPlayer.pauseVideo(); }
                 } else if (activePlayerType === 'dailymotion') {
                     const dmIframe = document.getElementById('dm-iframe');
-                    if (dmIframe) {
-                        if (data.action === 'play') dmIframe.contentWindow.postMessage('{"command":"play"}', '*');
-                        else if (data.action === 'pause') dmIframe.contentWindow.postMessage('{"command":"pause"}', '*');
+                    if (dmIframe && dmIframe.contentWindow) {
+                        if (data.action === 'play') {
+                            dmIframe.contentWindow.postMessage('{"command":"play"}', '*');
+                        }
+                        else if (data.action === 'pause') {
+                            dmIframe.contentWindow.postMessage('{"command":"pause"}', '*');
+                        }
+                        else if (data.action === 'seek') {
+                            dmIframe.contentWindow.postMessage('{"command":"setCurrentTime", "time": ' + data.time + '}', '*');
+                        }
                     }
                 } else if (activePlayerType === 'raw') {
                     const videoEl = document.getElementById('raw-video-element');
