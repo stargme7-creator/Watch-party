@@ -131,12 +131,13 @@ app.post('/api/register', async (req, res) => {
         };
 
         try {
-            await transporter.sendMail(mailOptions);
+            const info = await transporter.sendMail(mailOptions);
+            console.log("DEBUG: Email bheja gaya! Response:", info.response);
         } catch (mailErr) {
-            console.error("DEBUG: Asli Mail Error:", mailErr);
+            console.error("CRITICAL ERROR: Email sending failed");
+            console.error(mailErr);
         }
-
-        return res.json({
+            return res.json({
             success: true,
             message: 'Registered! Email check karke verify karein.'
         });
