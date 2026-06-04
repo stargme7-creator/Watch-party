@@ -3,31 +3,37 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
-const { Pool } = require('pg');
+const { Pool } = require('pg'); // Postgres library
 const nodemailer = require('nodemailer');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'watchparty_secret_2024';
-const SALT_ROUNDS = 10;
-
+// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Public folder serving
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Manifest fix
 app.get('/manifest.json', (req, res) => {
     res.sendFile(path.join(__dirname, 'manifest.json'));
 });
 
+// 🗄️ REAL POSTGRES CONNECTION CONFIGURATION
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
 
-// const transporter = nodemailer.createTransport({ ... }); 
-// Isko comment kar do ya delete kar do taaki email na bheje.
+// Email Transporter (Isse alag rakha hai taaki error na aaye)
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS
+    }
+});
 
+// App chalu hote hi check karega ki users table hai ya nahi, nahi toh bana dega
 const initDb = async () => {
     try {
         await pool.query(`
@@ -36,8 +42,7 @@ const initDb = async () => {
                 username VARCHAR(50) UNIQUE NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
-                is_verified BOOLEAN DEFAULT TRUE,
-                verify_token VARCHAR(255),
+                is_verified BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
@@ -48,43 +53,34 @@ const initDb = async () => {
 };
 initDb();
 
+// MAIN ROUTE
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Token verify middleware
-const verifyToken = (req, res, next) => {
-    const token = req.headers['authorization'];
-    if (!token) return res.json({ success: false, message: 'Token missing!' });
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded;
-        next();
-    } catch (err) {
-        return res.json({ success: false, message: 'Token invalid!' });
-    }
-};
-
+// 🔐 REAL POSTGRES AUTH APIs
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
         return res.json({ success: false, message: 'Email aur Password zaroori hai!' });
     }
+
     try {
+        // Database me user dhoondo
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        
         if (result.rows.length > 0) {
             const user = result.rows[0];
-            const passwordMatch = await bcrypt.compare(password, user.password);
-            if (passwordMatch) {
-                if (!user.is_verified) {
-                    return res.json({ success: false, message: 'Pehle email verify karein!' });
-                }
-                const token = jwt.sign(
-                    { id: user.id, username: user.username, email: user.email },
-                    JWT_SECRET,
-                    { expiresIn: '7d' }
-                );
-                return res.json({ success: true, username: user.username, token });
+            // Plain text password match check (Professional setup me bcrypt use hota hai, par abhi simple match)
+            if (user.password === password) {
+               if (!user.is_verified) {
+    return res.json({ success: false, message: 'Pehle email verify karein!' });
+               } 
+                return res.json({ 
+                    success: true, 
+                    username: user.username, 
+                    token: 'wp-token-' + user.id + '-' + Date.now() 
+                });
             } else {
                 return res.json({ success: false, message: 'Password galat hai!' });
             }
@@ -102,40 +98,36 @@ app.post('/api/register', async (req, res) => {
     if (!username || !email || !password) {
         return res.json({ success: false, message: 'Saari fields bharna zaroori hai!' });
     }
+
     try {
+        // Check karo ki email ya username pehle se toh nahi hai
         const userExists = await pool.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
         if (userExists.rows.length > 0) {
             return res.json({ success: false, message: 'Username ya Email pehle se register hai!' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-        const verifyToken = crypto.randomBytes(32).toString('hex');
-
+ // Naya user insert karo (is_verified column ke saath)
         await pool.query(
-            'INSERT INTO users (username, email, password, is_verified, verify_token) VALUES ($1, $2, $3, $4, $5)',
-            [username, email, hashedPassword, false, verifyToken]
+            'INSERT INTO users (username, email, password, is_verified) VALUES ($1, $2, $3, $4)',
+            [username, email, password, false]
         );
 
+        // Email bhejne ka code
         const mailOptions = {
             from: process.env.GMAIL_USER,
             to: email,
             subject: 'Verify Your WatchParty Account',
-            html: `<h2>Welcome to WatchParty!</h2>
-                   <p>Account verify karne ke liye niche click karein:</p>
-                   <a href="https://watch-party-production-828b.up.railway.app/verify?token=${verifyToken}">Verify Email</a>`
+            html: `<p>Welcome! Account verify karne ke liye niche click karein:</p>
+                   <a href="https://watch-party-production-828b.up.railway.app/verify?email=${email}">Verify Email</a>`
         };
+        transporter.sendMail(mailOptions);
 
-        try {
-            const info = await transporter.sendMail(mailOptions);
-            console.log("DEBUG: Email bheja gaya! Response:", info.response);
-        } catch (mailErr) {
-            console.error("CRITICAL ERROR: Email sending failed");
-            console.error(mailErr);
-        }
-            return res.json({
-            success: true,
-            message: 'Registered! Email check karke verify karein.'
-        });
+        return res.json({ 
+            success: true, 
+            username: username, //
+            token: 'wp-token-new-' + Date.now(),
+            message: 'Registered! Email check karke verify karein.' 
+        });      
 
     } catch (err) {
         console.error(err);
@@ -143,50 +135,40 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// Token validate API
-app.post('/api/validate', verifyToken, (req, res) => {
-    return res.json({ success: true, username: req.user.username });
-});
-
-app.get('/verify', async (req, res) => {
-    const { token } = req.query;
-    if (!token) return res.status(400).send("<h1>Invalid verification link!</h1>");
-    try {
-        const result = await pool.query('SELECT * FROM users WHERE verify_token = $1', [token]);
-        if (result.rows.length === 0) {
-            return res.status(400).send("<h1>Invalid ya expired verification link!</h1>");
-        }
-        await pool.query('UPDATE users SET is_verified = TRUE, verify_token = NULL WHERE verify_token = $1', [token]);
-        res.send("<h1>✅ Verified!</h1><p>Aapka account verify ho gaya hai. Ab aap login kar sakte hain.</p><a href='/'>Login karein</a>");
-    } catch (err) {
-        res.status(500).send("Verification Failed.");
-    }
-});
-
-const activeRooms = {};
+// Rooms ka live data track karne ke liye object (In-Memory for WebRTC & Sync)
+const activeRooms = {}; 
 
 io.on('connection', (socket) => {
     console.log('Naya user connect hua:', socket.id);
 
+    // 1. JOIN ROOM SYSTEM (WITH CLEANUP LOGIC)
     socket.on('join-room', ({ roomId, username }) => {
         if (!activeRooms[roomId]) {
             activeRooms[roomId] = { users: [], currentVideo: null };
         }
+
         activeRooms[roomId].users = activeRooms[roomId].users.filter(u => u.username !== username);
+        
         const userObj = { id: socket.id, username: username };
         activeRooms[roomId].users.push(userObj);
+
         socket.join(roomId);
         socket.roomId = roomId;
         socket.username = username;
+
         console.log(`${username} joined room: ${roomId}`);
+
         socket.to(roomId).emit('new-peer', socket.id);
+
         const usersList = activeRooms[roomId].users.map(u => u.username);
         io.to(roomId).emit('room-users-update', { users: usersList });
+
         if (activeRooms[roomId].currentVideo) {
             socket.emit('video-sync', activeRooms[roomId].currentVideo);
         }
     });
 
+    // 2. VIDEO SYNC ENGINE
     socket.on('video-sync', (roomId, data) => {
         if (activeRooms[roomId]) {
             if (data.action === 'loadNewVideo') {
@@ -199,6 +181,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 3. CHAT & REACTION
     socket.on('chat-message', (roomId, username, msg) => {
         io.to(roomId).emit('receive-chat', { user: username, msg: msg });
     });
@@ -207,6 +190,7 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('receive-reaction', emoji);
     });
 
+    // 4. WebRTC VOICE SIGNALING
     socket.on('webrtc-offer', (targetId, offer) => {
         socket.to(targetId).emit('webrtc-offer', socket.id, offer);
     });
@@ -219,13 +203,16 @@ io.on('connection', (socket) => {
         socket.to(targetId).emit('webrtc-ice', socket.id, candidate);
     });
 
+    // 5. CLEANUP ON DISCONNECT
     const handleUserLeave = (socketInstance) => {
         const rId = socketInstance.roomId;
         if (rId && activeRooms[rId]) {
             activeRooms[rId].users = activeRooms[rId].users.filter(u => u.id !== socketInstance.id);
             socketInstance.to(rId).emit('peer-disconnected', socketInstance.id);
+            
             const usersList = activeRooms[rId].users.map(u => u.username);
             io.to(rId).emit('room-users-update', { users: usersList });
+
             if (activeRooms[rId].users.length === 0) {
                 delete activeRooms[rId];
             }
@@ -244,3 +231,11 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+// Verification route
+app.get('/verify', async (req, res) => {
+    const { email } = req.query;
+    try {
+        await pool.query('UPDATE users SET is_verified = TRUE WHERE email = $1', [email]);
+        res.send("<h1>Verified!</h1><p>Aapka account verify ho gaya hai. Ab aap login kar sakte hain.</p>");
+    } catch (err) { res.status(500).send("Verification Failed."); }
+});
