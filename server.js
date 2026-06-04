@@ -168,14 +168,20 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 2. VIDEO SYNC ENGINE
+    // 2. VIDEO SYNC ENGINE (FIXED: play/pause/seek bhi currentVideo update karega)
     socket.on('video-sync', (roomId, data) => {
         if (activeRooms[roomId]) {
+            // Har action ke liye currentVideo update karo
             if (data.action === 'loadNewVideo') {
                 activeRooms[roomId].currentVideo = data;
-            } else if (activeRooms[roomId].currentVideo) {
-                activeRooms[roomId].currentVideo.action = data.action;
-                activeRooms[roomId].currentVideo.time = data.time;
+            } else if (data.action === 'play' || data.action === 'pause' || data.action === 'seek') {
+                if (activeRooms[roomId].currentVideo) {
+                    activeRooms[roomId].currentVideo.action = data.action;
+                    activeRooms[roomId].currentVideo.time = data.time;
+                } else {
+                    // Agar kisi reason se currentVideo missing ho (edge case)
+                    activeRooms[roomId].currentVideo = { action: data.action, time: data.time };
+                }
             }
             socket.to(roomId).emit('video-sync', data);
         }
@@ -231,7 +237,12 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server live on port ${PORT}`));
-// Verification route (Email verification bypass)
-app.get('/verify', (req, res) => {
-    res.send("<h1>Verified!</h1><p>Aapka account verify ho gaya hai.</p>");
+
+// Verification route
+app.get('/verify', async (req, res) => {
+    const { email } = req.query;
+    try {
+        await pool.query('UPDATE users SET is_verified = TRUE WHERE email = $1', [email]);
+        res.send("<h1>Verified!</h1><p>Aapka account verify ho gaya hai. Ab aap login kar sakte hain.</p>");
+    } catch (err) { res.status(500).send("Verification Failed."); }
 });
