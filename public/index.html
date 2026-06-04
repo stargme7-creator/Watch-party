@@ -2,18 +2,17 @@
 <html lang="en">
 <head>
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
-        }
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register('/sw.js');
+}
     </script>
     <link rel="manifest" href="/manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WatchParty - YouTube Sync + Dailymotion (No Sync)</title>
+    <title>WatchParty - Multi Stream & Sync</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         body { background-color: #0d0e15; color: #ffffff; font-family: sans-serif; }
         .pink-glow { text-shadow: 0 0 10px #ff007f; box-shadow: 0 0 15px rgba(255, 0, 127, 0.2); }
@@ -22,111 +21,137 @@
         .msg-item { margin-bottom: 6px; padding: 4px 8px; border-bottom: 1px solid #1f2335; }
         .msg-user { color: #ff007f; font-weight: bold; }
         iframe, video { width: 100%; height: 100%; border-radius: 8px; border: none; }
-        .error-toast { background: #ff4444; color: white; padding: 8px 16px; border-radius: 8px; position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: none; font-size: 14px; }
     </style>
 </head>
 <body class="p-4 flex flex-col min-h-screen justify-center items-center">
 
-    <div id="error-toast" class="error-toast"></div>
-
-    <!-- AUTH SCREEN -->
     <div id="auth-screen" class="w-full max-w-md panel-bg p-6 rounded-xl space-y-4">
         <div class="text-center">
             <h1 class="text-3xl font-bold text-pink-500 pink-glow inline-block px-4 py-1 rounded-md mb-2">
                 <i class="fa-solid fa-clapperboard"></i> WatchParty
             </h1>
-            <p class="text-xs text-gray-400">YouTube sync ke saath, Dailymotion sirf aapke liye</p>
+            <p class="text-xs text-gray-400">Dosto ke sath YouTube aur multi-platform videos dekho ek sath</p>
         </div>
+
         <div id="auth-tabs" class="flex border-b border-gray-800 text-sm font-semibold">
             <button id="tab-login" onclick="toggleAuthForm('login')" class="flex-1 pb-2 border-b-2 border-pink-500 text-pink-500">Login</button>
             <button id="tab-register" onclick="toggleAuthForm('register')" class="flex-1 pb-2 border-b-2 border-transparent text-gray-400">Register</button>
         </div>
+
         <div id="login-form" class="space-y-3">
-            <input type="email" id="login-email" placeholder="Email Address" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm">
-            <input type="password" id="login-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm">
-            <button onclick="handleLogin()" class="w-full bg-pink-600 hover:bg-pink-700 py-2 rounded font-bold text-sm">Sign In</button>
+            <input type="email" id="login-email" placeholder="Email Address" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <input type="password" id="login-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <button onclick="handleLogin()" class="w-full bg-pink-600 hover:bg-pink-700 py-2 rounded font-bold text-sm transition">Sign In</button>
         </div>
+
         <div id="register-form" class="space-y-3 hidden">
-            <input type="text" id="reg-user" placeholder="Username" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm">
-            <input type="email" id="reg-email" placeholder="Email" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm">
-            <input type="password" id="reg-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm">
-            <button onclick="handleRegister()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm">Create Account</button>
+            <input type="text" id="reg-user" placeholder="Choose Username" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <input type="email" id="reg-email" placeholder="Email Address" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <input type="password" id="reg-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
+            <button onclick="handleRegister()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm transition">Create Account</button>
         </div>
+
         <div id="lobby-panel" class="pt-4 border-t border-gray-800 space-y-3 hidden">
-            <div class="flex justify-between items-center">
-                <div class="text-xs font-bold text-pink-400">Welcome, <span id="welcome-user" class="text-white">User</span></div>
-                <button onclick="handleLogout()" class="text-xs text-red-400"><i class="fa-solid fa-power-off"></i> Logout</button>
+            <div class="flex justify-between items-center mb-1">
+                <div class="text-xs font-bold text-pink-400 uppercase tracking-wider">Welcome, <span id="welcome-user" class="text-white">User</span></div>
+                <button onclick="handleLogout()" class="text-xs text-red-400 hover:underline"><i class="fa-solid fa-power-off"></i> Logout</button>
             </div>
             <div class="flex gap-2">
-                <input type="text" id="join-room-id" placeholder="ROOM ID" class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono">
-                <button onclick="enterPartyRoom('join')" class="bg-purple-600 hover:bg-purple-700 px-4 rounded text-xs font-bold">Join Room</button>
+                <input type="text" id="join-room-id" placeholder="ENTER ROOM ID" class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono uppercase tracking-wider focus:outline-none focus:border-pink-500">
+                <button onclick="enterPartyRoom('join')" class="bg-purple-600 hover:bg-purple-700 px-4 rounded text-xs font-bold uppercase transition">Join Room</button>
             </div>
             <div class="relative flex py-2 items-center">
                 <div class="flex-grow border-t border-gray-800"></div>
-                <span class="flex-shrink mx-4 text-gray-500 text-xs">OR</span>
+                <span class="flex-shrink mx-4 text-gray-500 text-xs">YA</span>
                 <div class="flex-grow border-t border-gray-800"></div>
             </div>
-            <button onclick="enterPartyRoom('create')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 py-2 rounded font-bold text-sm">Create Room</button>
+            <button onclick="enterPartyRoom('create')" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 py-2 rounded font-bold text-sm transition">
+                <i class="fa-solid fa-plus mr-1"></i> Create Custom Room
+            </button>
         </div>
     </div>
 
-    <!-- PARTY ROOM SCREEN -->
     <div id="party-room-screen" class="w-full max-w-4xl space-y-4 hidden">
         <div class="flex justify-between items-center bg-gray-900/40 p-3 rounded-lg border border-gray-800/60">
-            <h1 class="text-2xl font-bold text-pink-500 pink-glow flex items-center gap-2"><i class="fa-solid fa-clapperboard"></i> WatchParty</h1>
+            <h1 class="text-2xl font-bold text-pink-500 pink-glow flex items-center gap-2">
+                <i class="fa-solid fa-clapperboard"></i> WatchParty
+            </h1>
             <div class="flex items-center gap-4">
-                <div class="text-sm text-gray-400">Room: <span id="room-display-id" class="text-white font-mono bg-gray-800 px-2 py-1 rounded">---</span></div>
-                <button onclick="leavePartyRoom()" class="text-xs bg-red-600 hover:bg-red-700 px-3 py-1 rounded"><i class="fa-solid fa-arrow-left"></i> Leave</button>
+                <div class="text-sm text-gray-400">Room ID: <span id="room-display-id" class="text-white font-mono font-bold bg-gray-800 px-2 py-1 rounded">---</span></div>
+                <button onclick="leavePartyRoom()" class="text-xs bg-red-600 hover:bg-red-700 px-3 py-1 rounded font-bold transition"><i class="fa-solid fa-arrow-left"></i> Leave Room</button>
             </div>
         </div>
+
         <div class="grid grid-cols-3 gap-2">
-            <button class="bg-red-600 hover:bg-red-700 py-2 rounded font-bold text-sm">YouTube</button>
-            <button class="bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm">Dailymotion</button>
-            <button id="mic-toggle-btn" onclick="toggleMicPipeline()" class="bg-gray-600 hover:bg-gray-700 py-2 rounded font-bold text-sm"><i class="fa-solid fa-microphone-slash"></i> Mic Off</button>
+            <button class="bg-red-600 hover:bg-red-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
+                <i class="fa-brands fa-youtube"></i> YouTube
+            </button>
+            <button class="bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
+                <i class="fa-solid fa-tv"></i> Dailymotion
+            </button>
+            <button id="mic-toggle-btn" onclick="toggleMicPipeline()" class="bg-gray-600 hover:bg-gray-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
+                <i class="fa-solid fa-microphone-slash"></i> Mic Off
+            </button>
         </div>
+
         <div class="flex gap-2">
-            <input type="text" id="video-url-input" placeholder="YouTube, Dailymotion ya MP4 link..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm">
-            <button onclick="loadVideo()" class="bg-red-600 hover:bg-red-700 px-5 rounded text-white"><i class="fa-solid fa-play"></i></button>
+            <input type="text" id="video-url-input" placeholder="YouTube, Dailymotion ya MP4 Video Link paste karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500">
+            <button onclick="playNewVideoFromInput()" class="bg-red-600 hover:bg-red-700 px-5 rounded text-white flex items-center justify-center transition">
+                <i class="fa-solid fa-play"></i>
+            </button>
         </div>
-        <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden panel-bg">
+
+        <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden panel-bg flex items-center justify-center">
+            <div id="processing-overlay" class="absolute top-2 right-2 bg-black/80 border border-pink-500 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 z-50 hidden">
+                <i class="fa-solid fa-tv animate-pulse text-pink-500"></i> Video Syncing...
+            </div>
             <div id="player-container" class="w-full h-full">
                 <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
                     <i class="fa-solid fa-film text-4xl mb-2"></i>
-                    <p class="font-semibold text-sm">Video link paste karo aur play karo</p>
-                    <p class="text-xs mt-1">YouTube video sync hoga, Dailymotion sirf aapke liye</p>
+                    <p class="font-semibold text-sm text-gray-300">YouTube, Dailymotion ya Video Link Share Karo</p>
+                    <p class="text-xs text-gray-500 mt-1">Koi bhi online stream URL lekar upar play karo</p>
                 </div>
             </div>
         </div>
+
         <div id="remote-audios" class="hidden"></div>
+
         <div class="flex justify-between bg-gray-900/50 p-2 rounded-lg border border-gray-800">
-            <button onclick="sendReaction('❤️')" class="text-xl">❤️</button><button onclick="sendReaction('😂')" class="text-xl">😂</button>
-            <button onclick="sendReaction('😮')" class="text-xl">😮</button><button onclick="sendReaction('😢')" class="text-xl">😢</button>
-            <button onclick="sendReaction('👏')" class="text-xl">👏</button><button onclick="sendReaction('🔥')" class="text-xl">🔥</button>
-            <button onclick="sendReaction('💀')" class="text-xl">💀</button>
+            <button onclick="sendReaction('❤️')" class="text-xl transform hover:scale-125 transition">❤️</button>
+            <button onclick="sendReaction('😂')" class="text-xl transform hover:scale-125 transition">😂</button>
+            <button onclick="sendReaction('😮')" class="text-xl transform hover:scale-125 transition">😮</button>
+            <button onclick="sendReaction('😢')" class="text-xl transform hover:scale-125 transition">😢</button>
+            <button onclick="sendReaction('👏')" class="text-xl transform hover:scale-125 transition">👏</button>
+            <button onclick="sendReaction('🔥')" class="text-xl transform hover:scale-125 transition">🔥</button>
+            <button onclick="sendReaction('💀')" class="text-xl transform hover:scale-125 transition">💀</button>
         </div>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="panel-bg p-3 rounded-lg md:col-span-1">
-                <h3 class="text-pink-400 font-bold text-xs uppercase"><i class="fa-solid fa-users"></i> Room Users</h3>
-                <div id="user-list" class="space-y-1 text-sm font-medium text-gray-300 mt-2"></div>
+                <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-users text-xs"></i> Room Users
+                </h3>
+                <div id="user-list" class="space-y-1 text-sm font-medium text-gray-300"></div>
             </div>
             <div class="panel-bg p-3 rounded-lg md:col-span-2 flex flex-col justify-between">
-                <h3 class="text-pink-400 font-bold text-xs uppercase"><i class="fa-solid fa-comments"></i> Live Chat</h3>
-                <div id="messages" class="mb-2 h-40 overflow-y-auto"></div>
+                <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-comments text-xs"></i> Live Chat
+                </h3>
+                <div id="messages" class="mb-2"></div>
                 <div class="flex gap-2 border-t border-gray-800 pt-2">
-                    <input type="text" id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="Kuch chat karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm">
-                    <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 px-4 rounded text-xs">Send</button>
+                    <input type="text" id="msg-input" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="Kuch chat karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-pink-500">
+                    <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 px-4 rounded text-xs font-bold text-white uppercase transition">Send</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        // ---------- GLOBALS ----------
         let socket;
         let ytPlayer = null;
-        let activePlayerType = null; // 'youtube', 'dailymotion', 'raw'
+        let activePlayerType = null;
         let ignoreSyncEvents = false;
-        let currentDmIframe = null;   // For Dailymotion iframe (no sync)
         const peers = {};
 
         const state = {
@@ -144,14 +169,6 @@
             ]
         };
 
-        function showError(msg) {
-            const toast = document.getElementById('error-toast');
-            toast.innerText = msg;
-            toast.style.display = 'block';
-            setTimeout(() => { toast.style.display = 'none'; }, 4000);
-        }
-
-        // ---------- AUTH ----------
         function toggleAuthForm(mode) {
             const loginF = document.getElementById('login-form');
             const regF = document.getElementById('register-form');
@@ -234,13 +251,14 @@
                 state.roomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
             } else {
                 const rInput = document.getElementById('join-room-id').value.trim().toUpperCase();
-                if (!rInput) return alert("Enter Room ID!");
+                if (!rInput) return alert("Please enter a valid Room ID!");
                 state.roomId = rInput;
             }
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('party-room-screen').classList.remove('hidden');
+            document.body.className = "p-4";
             document.getElementById('room-display-id').innerText = state.roomId;
-            if (socket) socket.disconnect();
+            if (socket) { socket.disconnect(); }
             socket = io();
             socket.emit('join-room', { roomId: state.roomId, username: state.username });
             setupSocketListeners();
@@ -262,7 +280,6 @@
             showLobbyView();
         }
 
-        // ---------- MIC & WEBRTC ----------
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
             if (!state.micActive) {
@@ -274,7 +291,7 @@
                     state.localStream.getAudioTracks().forEach(track => {
                         Object.values(peers).forEach(pc => { pc.addTrack(track, state.localStream); });
                     });
-                } catch (err) { showError("Mic permission nahi mili"); }
+                } catch (err) { alert("Mic open nahi ho saka!"); }
             } else {
                 if (state.localStream) state.localStream.getTracks().forEach(t => t.stop());
                 state.micActive = false;
@@ -297,6 +314,7 @@
                     audioEl = document.createElement('audio');
                     audioEl.id = `audio-${targetUserId}`;
                     audioEl.autoplay = true;
+                    audioEl.setAttribute('playsinline', 'true');
                     document.getElementById('remote-audios').appendChild(audioEl);
                 }
                 audioEl.srcObject = event.streams[0];
@@ -312,175 +330,222 @@
             return pc;
         }
 
-        // ---------- VIDEO URL PARSING ----------
-        function parseVideoUrl(url) {
+        function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
-            // Raw MP4
             if (url.match(/\.(mp4|webm|ogg|m3u8)($|\?)/i)) return { type: 'raw', id: url };
-            // YouTube
-            const ytRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=))([\w-]{11})/;
+            const ytRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
             const ytMatch = url.match(ytRegex);
-            if (ytMatch) return { type: 'youtube', id: ytMatch[1] };
-            // Dailymotion - simple regex
-            const dmRegex = /dailymotion\.com\/video\/([a-zA-Z0-9]+)/;
+            if (ytMatch && ytMatch[2].length === 11) return { type: 'youtube', id: ytMatch[2] };
+            const dmRegex = /(?:dailymotion\.com\/(?:video|hub)\/|dai\.ly\/)([a-zA-Z0-9]+)/;
             const dmMatch = url.match(dmRegex);
             if (dmMatch) return { type: 'dailymotion', id: dmMatch[1] };
             return null;
         }
 
-        function destroyPlayers() {
-            if (ytPlayer && typeof ytPlayer.destroy === 'function') ytPlayer.destroy();
-            ytPlayer = null;
-            if (currentDmIframe) {
-                currentDmIframe = null;
-            }
-            activePlayerType = null;
+        function playNewVideoFromInput() {
+            const urlInput = document.getElementById('video-url-input');
+            const mediaMeta = parseVideoId(urlInput.value);
+            if (mediaMeta) {
+                showOverlay(true);
+                socket.emit('video-sync', state.roomId, { action: 'loadNewVideo', meta: mediaMeta });
+                renderActivePlayer(mediaMeta);
+                urlInput.value = '';
+            } else { alert("URL galat hai!"); }
         }
 
-        // Dailymotion: simple iframe embed (no sync, guaranteed to play)
-        function loadDailymotion(videoId) {
-            const container = document.getElementById('player-container');
-            container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${videoId}?autoplay=1&controls=1" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
-            currentDmIframe = document.getElementById('dm-iframe');
-            activePlayerType = 'dailymotion';
-            // No sync listeners attached
-        }
-
-        // YouTube with sync
-        function onYouTubeStateChange(event) {
-            if (ignoreSyncEvents) return;
-            if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
-            const t = ytPlayer.getCurrentTime();
-            if (event.data === YT.PlayerState.PLAYING) {
-                socket.emit('video-sync', state.roomId, { action: 'play', time: t });
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                socket.emit('video-sync', state.roomId, { action: 'pause', time: t });
-            }
-        }
-
-        function loadYouTube(videoId) {
-            const container = document.getElementById('player-container');
-            container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
-            ytPlayer = new YT.Player('yt-iframe-placeholder', {
-                videoId: videoId,
-                playerVars: { autoplay: 1, controls: 1, rel: 0, enablejsapi: 1 },
-                events: {
-                    onStateChange: onYouTubeStateChange,
-                    onError: () => showError("YouTube error")
+        // ✅ FIXED: Dailymotion event handler with proper error handling
+        function setupDailymotionListeners(dmIframe) {
+            window.dmMessageHandler = function(event) {
+                if (!event.data) return;
+                
+                // Try to parse JSON, if fail then ignore (no more feedback error)
+                let data = event.data;
+                if (typeof data === 'string') {
+                    try {
+                        data = JSON.parse(data);
+                    } catch(e) {
+                        // Not JSON, ignore silently - no more feedback error
+                        return;
+                    }
                 }
-            });
-            activePlayerType = 'youtube';
+                
+                // Handle different event formats
+                let eventType = null;
+                let eventTime = data.time || 0;
+                
+                if (data.event === 'playing' || data.event === 'play' || data === 'playing') {
+                    eventType = 'play';
+                } else if (data.event === 'pause' || data.event === 'paused' || data === 'pause') {
+                    eventType = 'pause';
+                }
+                
+                if (eventType && !ignoreSyncEvents) {
+                    socket.emit('video-sync', state.roomId, { action: eventType, time: eventTime });
+                }
+            };
+            window.addEventListener('message', window.dmMessageHandler);
         }
 
-        function loadRawMP4(url) {
+        function cleanupDailymotionListeners() {
+            if (window.dmMessageHandler) {
+                window.removeEventListener('message', window.dmMessageHandler);
+                window.dmMessageHandler = null;
+            }
+        }
+
+        function renderActivePlayer(meta) {
             const container = document.getElementById('player-container');
-            container.innerHTML = `<video id="raw-video" controls autoplay class="w-full h-full"><source src="${url}" type="video/mp4"></video>`;
-            const videoEl = document.getElementById('raw-video');
-            videoEl.onerror = () => showError("MP4 load failed");
-            activePlayerType = 'raw';
-            // No sync for raw
-        }
-
-        function loadVideo() {
-            const url = document.getElementById('video-url-input').value;
-            const meta = parseVideoUrl(url);
-            if (!meta) {
-                showError("Invalid URL. Use YouTube, Dailymotion or MP4 link.");
-                return;
-            }
-            destroyPlayers();
+            ytPlayer = null;
+            cleanupDailymotionListeners(); // Clean old listeners
+            
             if (meta.type === 'youtube') {
-                loadYouTube(meta.id);
+                activePlayerType = 'youtube';
+                container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
+                ytPlayer = new YT.Player('yt-iframe-placeholder', {
+                    videoId: meta.id,
+                    playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'controls': 1, 'rel': 0 },
+                    events: { 'onStateChange': onYouTubePlayerStateChange }
+                });
             } else if (meta.type === 'dailymotion') {
-                loadDailymotion(meta.id);
+                activePlayerType = 'dailymotion';
+                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1&api=postMessage" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
+                // Setup listeners after iframe is added
+                setTimeout(() => {
+                    const dmIframe = document.getElementById('dm-iframe');
+                    if (dmIframe) setupDailymotionListeners(dmIframe);
+                }, 100);
             } else if (meta.type === 'raw') {
-                loadRawMP4(meta.id);
+                activePlayerType = 'raw';
+                container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
+                setupRawVideoListeners();
+            }
+            setTimeout(() => showOverlay(false), 800);
+        }
+
+        function onYouTubePlayerStateChange(event) {
+            if (ignoreSyncEvents || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+            const currentTime = ytPlayer.getCurrentTime();
+            if (event.data === YT.PlayerState.PLAYING) {
+                socket.emit('video-sync', state.roomId, { action: 'play', time: currentTime });
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                socket.emit('video-sync', state.roomId, { action: 'pause', time: currentTime });
             }
         }
 
-        // Apply YouTube sync from socket
-        async function applyYoutubeSync(data) {
-            if (activePlayerType !== 'youtube') return;
-            if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
-            ignoreSyncEvents = true;
-            try {
-                const localTime = ytPlayer.getCurrentTime();
-                if (Math.abs(localTime - data.time) > 1.5) ytPlayer.seekTo(data.time, true);
-                if (data.action === 'play') ytPlayer.playVideo();
-                else if (data.action === 'pause') ytPlayer.pauseVideo();
-            } catch(e) { console.warn(e); }
-            setTimeout(() => { ignoreSyncEvents = false; }, 400);
+        function setupRawVideoListeners() {
+            const videoEl = document.getElementById('raw-video-element');
+            if (!videoEl) return;
+            videoEl.addEventListener('play', () => {
+                if (ignoreSyncEvents) return;
+                socket.emit('video-sync', state.roomId, { action: 'play', time: videoEl.currentTime });
+            });
+            videoEl.addEventListener('pause', () => {
+                if (ignoreSyncEvents) return;
+                socket.emit('video-sync', state.roomId, { action: 'pause', time: videoEl.currentTime });
+            });
+            videoEl.addEventListener('seeked', () => {
+                if (ignoreSyncEvents) return;
+                socket.emit('video-sync', state.roomId, { action: 'seek', time: videoEl.currentTime });
+            });
         }
 
-        // ---------- CHAT & REACTIONS ----------
+        function showOverlay(v) {
+            const o = document.getElementById('processing-overlay');
+            if (v) o.classList.remove('hidden'); else o.classList.add('hidden');
+        }
+
         function sendMessage() {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
             socket.emit('chat-message', state.roomId, state.username, input.value.trim());
             input.value = '';
         }
+
         function sendReaction(emoji) { socket.emit('reaction', state.roomId, emoji); }
 
-        // ---------- SOCKET LISTENERS ----------
         function setupSocketListeners() {
             socket.on('receive-chat', ({ user, msg }) => {
                 const box = document.getElementById('messages');
                 const item = document.createElement('div');
                 item.className = 'msg-item';
                 item.innerHTML = `<span class="msg-user">${user}:</span> ${msg}`;
-                box.appendChild(item);
-                box.scrollTop = box.scrollHeight;
+                box.appendChild(item); box.scrollTop = box.scrollHeight;
             });
 
-            socket.on('receive-reaction', (emoji) => { /* optional */ });
-
-            socket.on('video-sync', async (data) => {
+            socket.on('video-sync', (data) => {
                 if (!data) return;
                 if (data.action === 'loadNewVideo' && data.meta) {
-                    // ignore forced loads
-                    return;
+                    showOverlay(true); renderActivePlayer(data.meta); return;
                 }
-                await applyYoutubeSync(data);
+                ignoreSyncEvents = true;
+                if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+                    const localTime = ytPlayer.getCurrentTime();
+                    if (Math.abs(localTime - data.time) > 1.5) { ytPlayer.seekTo(data.time, true); }
+                    if (data.action === 'play') { ytPlayer.playVideo(); }
+                    else if (data.action === 'pause') { ytPlayer.pauseVideo(); }
+                } else if (activePlayerType === 'dailymotion') {
+                    const dmIframe = document.getElementById('dm-iframe');
+                    if (dmIframe && dmIframe.contentWindow) {
+                        if (data.action === 'play') dmIframe.contentWindow.postMessage('{"command":"play"}', '*');
+                        else if (data.action === 'pause') dmIframe.contentWindow.postMessage('{"command":"pause"}', '*');
+                        else if (data.action === 'seek') dmIframe.contentWindow.postMessage('{"command":"seek", "time": ' + data.time + '}', '*');
+                    }
+                } else if (activePlayerType === 'raw') {
+                    const videoEl = document.getElementById('raw-video-element');
+                    if (videoEl) {
+                        if (Math.abs(videoEl.currentTime - data.time) > 1.5) { videoEl.currentTime = data.time; }
+                        if (data.action === 'play') { videoEl.play(); }
+                        else if (data.action === 'pause') { videoEl.pause(); }
+                    }
+                }
+                setTimeout(() => { ignoreSyncEvents = false; }, 400);
             });
 
             socket.on('new-peer', (targetUserId) => { initPeerConnection(targetUserId, true); });
             socket.on('webrtc-offer', (fromId, offer) => {
                 const pc = initPeerConnection(fromId, false);
-                pc.setRemoteDescription(new RTCSessionDescription(offer)).then(() => pc.createAnswer())
-                    .then(answer => pc.setLocalDescription(answer))
-                    .then(() => socket.emit('webrtc-answer', fromId, pc.localDescription));
+                pc.setRemoteDescription(new RTCSessionDescription(offer)).then(() => pc.createAnswer()).then(answer => {
+                    return pc.setLocalDescription(answer);
+                }).then(() => socket.emit('webrtc-answer', fromId, pc.localDescription));
             });
             socket.on('webrtc-answer', (fromId, answer) => { if (peers[fromId]) peers[fromId].setRemoteDescription(new RTCSessionDescription(answer)); });
             socket.on('webrtc-ice', (fromId, candidate) => { if (peers[fromId]) peers[fromId].addIceCandidate(new RTCIceCandidate(candidate)); });
             socket.on('peer-disconnected', (targetUserId) => {
                 if (peers[targetUserId]) { peers[targetUserId].close(); delete peers[targetUserId]; }
-                const audioEl = document.getElementById(`audio-${targetUserId}`);
-                if (audioEl) audioEl.remove();
+                if (document.getElementById(`audio-${targetUserId}`)) document.getElementById(`audio-${targetUserId}`).remove();
             });
 
-            socket.on('room-users-update', (data) => {
-                const list = document.getElementById('user-list');
-                list.innerHTML = '';
-                if (!data.users || data.users.length === 0) {
-                    list.innerHTML = '<div class="text-xs text-gray-500 italic">Empty</div>';
-                    return;
+            function updateOnlineUsersList(roomUsers) {
+                const list = document.getElementById('user-list'); list.innerHTML = '';
+                if (!roomUsers || roomUsers.length === 0) {
+                    list.innerHTML = `<div class="text-xs text-gray-500 italic p-1">Empty...</div>`; return;
                 }
-                data.users.forEach(user => {
-                    list.innerHTML += `<div class="flex items-center justify-between p-1">
-                        <div class="flex items-center gap-2"><span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span><span class="text-sm font-medium">${user}</span></div>
-                        <span class="text-[10px] bg-green-500/10 text-green-400 border px-1.5 py-0.5 rounded-full">Online</span>
-                    </div>`;
+                roomUsers.forEach(user => {
+                    list.innerHTML += `
+                        <div class="flex items-center justify-between p-1 rounded hover:bg-gray-800/40 transition">
+                            <div class="flex items-center gap-2">
+                                <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
+                                <span class="text-sm font-medium text-gray-200">${user}</span>
+                            </div>
+                            <span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full font-mono uppercase tracking-wider">Online</span>
+                        </div>`;
                 });
-            });
+            }
+            socket.on('room-users-update', (data) => { if (data && data.users) updateOnlineUsersList(data.users); });
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            if (state.token && state.username) showLobbyView();
-        });
+        window.addEventListener('DOMContentLoaded', () => { if (state.token && state.username) showLobbyView(); });
+
+        window.addEventListener('click', () => {
+            const audios = document.querySelectorAll('audio');
+            audios.forEach(audio => { if (audio.paused) audio.play(); });
+        }, { once: true });
     </script>
-    <footer class="text-center text-xs text-gray-500 mt-4">
-        <p>&copy; 2026 Watch Party App. <a href="https://www.termsfeed.com/live/bfae1679-234e-4d2b-bbd4-21438b92aa79" target="_blank">Privacy Policy</a></p>
+    <footer>
+        <p>&copy; 2026 Watch Party App.
+            <a href="https://www.termsfeed.com/live/bfae1679-234e-4d2b-bbd4-21438b92aa79" target="_blank">Privacy Policy</a>
+        </p>
     </footer>
 </body>
-</html>
+    </html>
