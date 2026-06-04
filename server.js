@@ -4,7 +4,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 const { Pool } = require('pg'); // Postgres library
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend'); // ✅ Email API (Resend)
 
 // Body parsing middleware
 app.use(express.json());
@@ -24,14 +24,8 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// Email Transporter (Isse alag rakha hai taaki error na aaye)
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
-    }
-});
+// ✅ Email setup using Resend API (no SMTP ports needed)
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // App chalu hote hi check karega ki users table hai ya nahi, nahi toh bana dega
 const initDb = async () => {
@@ -106,25 +100,39 @@ app.post('/api/register', async (req, res) => {
             return res.json({ success: false, message: 'Username ya Email pehle se register hai!' });
         }
 
- // Naya user insert karo (is_verified column ke saath)
+        // Naya user insert karo (is_verified column ke saath)
         await pool.query(
             'INSERT INTO users (username, email, password, is_verified) VALUES ($1, $2, $3, $4)',
             [username, email, password, false]
         );
 
-        // Email bhejne ka code
-        const mailOptions = {
-            from: process.env.GMAIL_USER,
+        // ✅ Email bhejne ka code using Resend API (Gmail SMTP ki jagah)
+        const verificationLink = `https://${req.get('host')}/verify?email=${encodeURIComponent(email)}`;
+        
+        const { data, error } = await resend.emails.send({
+            from: 'onboarding@resend.dev', // Resend ka default domain, baad me apna bhi daal sakte ho
             to: email,
             subject: 'Verify Your WatchParty Account',
             html: `<p>Welcome! Account verify karne ke liye niche click karein:</p>
-                   <a href="https://watch-party-production-828b.up.railway.app/verify?email=${email}">Verify Email</a>`
-        };
-        transporter.sendMail(mailOptions);
+                   <a href="${verificationLink}">Verify Email</a>`
+        });
+
+        if (error) {
+            console.error("Email send error:", error);
+            // Email fail hua toh bhi account create ho chuka hai, lekin user ko bata do
+            return res.json({ 
+                success: true, 
+                username: username,
+                token: 'wp-token-new-' + Date.now(),
+                message: 'Registered! Lekin verification email bhejne me problem hui. Contact support.' 
+            });
+        }
+
+        console.log("Verification email sent:", data?.id);
 
         return res.json({ 
             success: true, 
-            username: username, //
+            username: username,
             token: 'wp-token-new-' + Date.now(),
             message: 'Registered! Email check karke verify karein.' 
         });      
@@ -238,7 +246,7 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server live on port ${PORT}`));
 
-// Verification route
+// Verification route (same as before)
 app.get('/verify', async (req, res) => {
     const { email } = req.query;
     try {
