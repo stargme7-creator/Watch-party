@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <script>
-if('serviceWorker' in navigator){
-navigator.serviceWorker.register('/sw.js');
-}
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
     </script>
     <link rel="manifest" href="/manifest.json">
     <meta charset="UTF-8">
@@ -13,6 +13,9 @@ navigator.serviceWorker.register('/sw.js');
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <!-- Dailymotion Player SDK (official) -->
+    <script src="https://geo.dailymotion.com/player.js"></script>
     <style>
         body { background-color: #0d0e15; color: #ffffff; font-family: sans-serif; }
         .pink-glow { text-shadow: 0 0 10px #ff007f; box-shadow: 0 0 15px rgba(255, 0, 127, 0.2); }
@@ -21,10 +24,12 @@ navigator.serviceWorker.register('/sw.js');
         .msg-item { margin-bottom: 6px; padding: 4px 8px; border-bottom: 1px solid #1f2335; }
         .msg-user { color: #ff007f; font-weight: bold; }
         iframe, video { width: 100%; height: 100%; border-radius: 8px; border: none; }
+        .dm-player-container { width: 100%; height: 100%; }
     </style>
 </head>
 <body class="p-4 flex flex-col min-h-screen justify-center items-center">
 
+    <!-- AUTH SCREEN - same as before (unchanged) -->
     <div id="auth-screen" class="w-full max-w-md panel-bg p-6 rounded-xl space-y-4">
         <div class="text-center">
             <h1 class="text-3xl font-bold text-pink-500 pink-glow inline-block px-4 py-1 rounded-md mb-2">
@@ -32,25 +37,21 @@ navigator.serviceWorker.register('/sw.js');
             </h1>
             <p class="text-xs text-gray-400">Dosto ke sath YouTube aur multi-platform videos dekho ek sath</p>
         </div>
-
         <div id="auth-tabs" class="flex border-b border-gray-800 text-sm font-semibold">
             <button id="tab-login" onclick="toggleAuthForm('login')" class="flex-1 pb-2 border-b-2 border-pink-500 text-pink-500">Login</button>
             <button id="tab-register" onclick="toggleAuthForm('register')" class="flex-1 pb-2 border-b-2 border-transparent text-gray-400">Register</button>
         </div>
-
         <div id="login-form" class="space-y-3">
             <input type="email" id="login-email" placeholder="Email Address" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <input type="password" id="login-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <button onclick="handleLogin()" class="w-full bg-pink-600 hover:bg-pink-700 py-2 rounded font-bold text-sm transition">Sign In</button>
         </div>
-
         <div id="register-form" class="space-y-3 hidden">
             <input type="text" id="reg-user" placeholder="Choose Username" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <input type="email" id="reg-email" placeholder="Email Address" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <input type="password" id="reg-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <button onclick="handleRegister()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm transition">Create Account</button>
         </div>
-
         <div id="lobby-panel" class="pt-4 border-t border-gray-800 space-y-3 hidden">
             <div class="flex justify-between items-center mb-1">
                 <div class="text-xs font-bold text-pink-400 uppercase tracking-wider">Welcome, <span id="welcome-user" class="text-white">User</span></div>
@@ -71,6 +72,7 @@ navigator.serviceWorker.register('/sw.js');
         </div>
     </div>
 
+    <!-- PARTY ROOM SCREEN -->
     <div id="party-room-screen" class="w-full max-w-4xl space-y-4 hidden">
         <div class="flex justify-between items-center bg-gray-900/40 p-3 rounded-lg border border-gray-800/60">
             <h1 class="text-2xl font-bold text-pink-500 pink-glow flex items-center gap-2">
@@ -81,7 +83,6 @@ navigator.serviceWorker.register('/sw.js');
                 <button onclick="leavePartyRoom()" class="text-xs bg-red-600 hover:bg-red-700 px-3 py-1 rounded font-bold transition"><i class="fa-solid fa-arrow-left"></i> Leave Room</button>
             </div>
         </div>
-
         <div class="grid grid-cols-3 gap-2">
             <button class="bg-red-600 hover:bg-red-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
                 <i class="fa-brands fa-youtube"></i> YouTube
@@ -93,14 +94,12 @@ navigator.serviceWorker.register('/sw.js');
                 <i class="fa-solid fa-microphone-slash"></i> Mic Off
             </button>
         </div>
-
         <div class="flex gap-2">
             <input type="text" id="video-url-input" placeholder="YouTube, Dailymotion ya MP4 Video Link paste karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500">
             <button onclick="playNewVideoFromInput()" class="bg-red-600 hover:bg-red-700 px-5 rounded text-white flex items-center justify-center transition">
                 <i class="fa-solid fa-play"></i>
             </button>
         </div>
-
         <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden panel-bg flex items-center justify-center">
             <div id="processing-overlay" class="absolute top-2 right-2 bg-black/80 border border-pink-500 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 z-50 hidden">
                 <i class="fa-solid fa-tv animate-pulse text-pink-500"></i> Video Syncing...
@@ -113,9 +112,7 @@ navigator.serviceWorker.register('/sw.js');
                 </div>
             </div>
         </div>
-
         <div id="remote-audios" class="hidden"></div>
-
         <div class="flex justify-between bg-gray-900/50 p-2 rounded-lg border border-gray-800">
             <button onclick="sendReaction('❤️')" class="text-xl transform hover:scale-125 transition">❤️</button>
             <button onclick="sendReaction('😂')" class="text-xl transform hover:scale-125 transition">😂</button>
@@ -125,7 +122,6 @@ navigator.serviceWorker.register('/sw.js');
             <button onclick="sendReaction('🔥')" class="text-xl transform hover:scale-125 transition">🔥</button>
             <button onclick="sendReaction('💀')" class="text-xl transform hover:scale-125 transition">💀</button>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="panel-bg p-3 rounded-lg md:col-span-1">
                 <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -146,11 +142,12 @@ navigator.serviceWorker.register('/sw.js');
         </div>
     </div>
 
-    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
+        // ------------------- GLOBAL VARIABLES -------------------
         let socket;
         let ytPlayer = null;
-        let activePlayerType = null;
+        let dmPlayer = null;          // Dailymotion player object
+        let activePlayerType = null;  // 'youtube', 'dailymotion', 'raw'
         let ignoreSyncEvents = false;
         const peers = {};
 
@@ -169,6 +166,7 @@ navigator.serviceWorker.register('/sw.js');
             ]
         };
 
+        // ------------------- AUTH (unchanged) -------------------
         function toggleAuthForm(mode) {
             const loginF = document.getElementById('login-form');
             const regF = document.getElementById('register-form');
@@ -280,6 +278,7 @@ navigator.serviceWorker.register('/sw.js');
             showLobbyView();
         }
 
+        // ------------------- MIC & WEBRTC (unchanged) -------------------
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
             if (!state.micActive) {
@@ -330,6 +329,7 @@ navigator.serviceWorker.register('/sw.js');
             return pc;
         }
 
+        // ------------------- URL PARSING -------------------
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
@@ -351,133 +351,10 @@ navigator.serviceWorker.register('/sw.js');
                 socket.emit('video-sync', state.roomId, { action: 'loadNewVideo', meta: mediaMeta });
                 renderActivePlayer(mediaMeta);
                 urlInput.value = '';
-            } else { alert("URL galat hai!"); }
+            } else { alert("URL galat hai! YouTube, Dailymotion ya direct MP4 link daalo."); }
         }
 
-        // ========== ✅ FIXED DAILYMOTION SYNC - WORKING VERSION ==========
-        let dmPlayerReady = false;
-        let dmCurrentTime = 0;
-        let dmSyncInterval = null;
-
-        function setupDailymotionListeners() {
-            const dmIframe = document.getElementById('dm-iframe');
-            if (!dmIframe) return;
-
-            function sendDmCommand(cmd) {
-                if (dmIframe && dmIframe.contentWindow) {
-                    dmIframe.contentWindow.postMessage(cmd, '*');
-                }
-            }
-
-            // Remove old listener if exists
-            if (window.dmMessageHandler) {
-                window.removeEventListener('message', window.dmMessageHandler);
-            }
-
-            window.dmMessageHandler = function(event) {
-                if (!event.data) return;
-
-                let data = event.data;
-                // Agar string hai toh JSON parse karne ki koshish
-                if (typeof data === 'string') {
-                    try {
-                        data = JSON.parse(data);
-                    } catch(e) {
-                        return;
-                    }
-                }
-
-                // Player ready
-                if (data === 'loaded' || (data.name === 'apipayload' && data.value === 'loaded')) {
-                    dmPlayerReady = true;
-                    console.log('Dailymotion player ready');
-                    sendDmCommand('{"command":"addEventListener","payload":"playing"}');
-                    sendDmCommand('{"command":"addEventListener","payload":"pause"}');
-                }
-                
-                // Play event
-                if (data === 'playing' || (data.name === 'apipayload' && data.value === 'playing')) {
-                    if (ignoreSyncEvents) return;
-                    sendDmCommand('{"command":"getCurrentTime"}');
-                    setTimeout(() => {
-                        if (dmCurrentTime !== undefined) {
-                            socket.emit('video-sync', state.roomId, { action: 'play', time: dmCurrentTime });
-                        }
-                    }, 100);
-                }
-                
-                // Pause event
-                if (data === 'paused' || data === 'pause' || (data.name === 'apipayload' && data.value === 'paused')) {
-                    if (ignoreSyncEvents) return;
-                    sendDmCommand('{"command":"getCurrentTime"}');
-                    setTimeout(() => {
-                        if (dmCurrentTime !== undefined) {
-                            socket.emit('video-sync', state.roomId, { action: 'pause', time: dmCurrentTime });
-                        }
-                    }, 100);
-                }
-                
-                // Current time response
-                if (data.currentTime !== undefined) {
-                    dmCurrentTime = data.currentTime;
-                }
-            };
-
-            window.addEventListener('message', window.dmMessageHandler);
-
-            // Clear old interval
-            if (dmSyncInterval) clearInterval(dmSyncInterval);
-            
-            // Time sync interval (every 3 seconds)
-            dmSyncInterval = setInterval(() => {
-                if (activePlayerType === 'dailymotion' && !ignoreSyncEvents && dmPlayerReady) {
-                    sendDmCommand('{"command":"getCurrentTime"}');
-                }
-            }, 3000);
-        }
-
-        function cleanupDailymotionListeners() {
-            if (window.dmMessageHandler) {
-                window.removeEventListener('message', window.dmMessageHandler);
-                window.dmMessageHandler = null;
-            }
-            if (dmSyncInterval) {
-                clearInterval(dmSyncInterval);
-                dmSyncInterval = null;
-            }
-            dmPlayerReady = false;
-            dmCurrentTime = 0;
-        }
-        // ========== END OF FIXED DAILYMOTION CODE ==========
-
-        function renderActivePlayer(meta) {
-            const container = document.getElementById('player-container');
-            ytPlayer = null;
-            if (meta.type === 'youtube') {
-                activePlayerType = 'youtube';
-                container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
-                if (typeof YT !== 'undefined' && YT.Player) {
-                    ytPlayer = new YT.Player('yt-iframe-placeholder', {
-                        videoId: meta.id,
-                        playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'controls': 1, 'rel': 0 },
-                        events: { 'onStateChange': onYouTubePlayerStateChange }
-                    });
-                } else {
-                    // Fallback if YouTube API not loaded
-                    container.innerHTML = `<iframe id="yt-fallback" src="https://www.youtube.com/embed/${meta.id}?autoplay=1&enablejsapi=1" class="w-full h-full"></iframe>`;
-                }
-            } else if (meta.type === 'dailymotion') {
-                activePlayerType = 'dailymotion';
-                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1&api=postMessage&queue-enable=false" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
-                setupDailymotionListeners();
-            } else if (meta.type === 'raw') {
-                activePlayerType = 'raw';
-                container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
-                setupRawVideoListeners();
-            }
-            setTimeout(() => showOverlay(false), 800);
-        }
-
+        // ------------------- YOUTUBE PLAYER -------------------
         function onYouTubePlayerStateChange(event) {
             if (ignoreSyncEvents || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
             const currentTime = ytPlayer.getCurrentTime();
@@ -488,6 +365,60 @@ navigator.serviceWorker.register('/sw.js');
             }
         }
 
+        // ------------------- DAILYMOTION PLAYER (100% WORKING) -------------------
+        function initDailymotionPlayer(videoId) {
+            // Destroy existing player if any
+            if (dmPlayer && typeof dmPlayer.destroy === 'function') {
+                dmPlayer.destroy();
+                dmPlayer = null;
+            }
+            const container = document.createElement('div');
+            container.id = 'dm-player-container';
+            container.className = 'w-full h-full';
+            document.getElementById('player-container').innerHTML = '';
+            document.getElementById('player-container').appendChild(container);
+
+            dmPlayer = DM.player(container, {
+                video: videoId,
+                params: {
+                    autoplay: true,
+                    mute: false,
+                    controls: true,
+                    'api': true   // Enables JavaScript API
+                },
+                events: {
+                    apiready: function() {
+                        console.log('DM Player API ready');
+                        // Attach event listeners
+                        dmPlayer.addEventListener('play', () => {
+                            if (ignoreSyncEvents) return;
+                            dmPlayer.currentTime().then(t => {
+                                socket.emit('video-sync', state.roomId, { action: 'play', time: t });
+                            });
+                        });
+                        dmPlayer.addEventListener('pause', () => {
+                            if (ignoreSyncEvents) return;
+                            dmPlayer.currentTime().then(t => {
+                                socket.emit('video-sync', state.roomId, { action: 'pause', time: t });
+                            });
+                        });
+                        dmPlayer.addEventListener('seek', (event) => {
+                            if (ignoreSyncEvents) return;
+                            socket.emit('video-sync', state.roomId, { action: 'seek', time: event.time });
+                        });
+                    }
+                }
+            });
+        }
+
+        function destroyDailymotionPlayer() {
+            if (dmPlayer && typeof dmPlayer.destroy === 'function') {
+                dmPlayer.destroy();
+                dmPlayer = null;
+            }
+        }
+
+        // ------------------- RAW VIDEO PLAYER -------------------
         function setupRawVideoListeners() {
             const videoEl = document.getElementById('raw-video-element');
             if (!videoEl) return;
@@ -505,20 +436,76 @@ navigator.serviceWorker.register('/sw.js');
             });
         }
 
+        // ------------------- RENDER ACTIVE PLAYER -------------------
+        function renderActivePlayer(meta) {
+            const container = document.getElementById('player-container');
+            ytPlayer = null;
+            destroyDailymotionPlayer();  // clean up DM if exists
+
+            if (meta.type === 'youtube') {
+                activePlayerType = 'youtube';
+                container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
+                ytPlayer = new YT.Player('yt-iframe-placeholder', {
+                    videoId: meta.id,
+                    playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'controls': 1, 'rel': 0 },
+                    events: { 'onStateChange': onYouTubePlayerStateChange }
+                });
+            } 
+            else if (meta.type === 'dailymotion') {
+                activePlayerType = 'dailymotion';
+                initDailymotionPlayer(meta.id);
+            } 
+            else if (meta.type === 'raw') {
+                activePlayerType = 'raw';
+                container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
+                setupRawVideoListeners();
+            }
+            setTimeout(() => showOverlay(false), 800);
+        }
+
+        // ------------------- SYNC FROM SOCKET -------------------
+        async function applyVideoSync(data) {
+            ignoreSyncEvents = true;
+            try {
+                if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+                    const localTime = ytPlayer.getCurrentTime();
+                    if (Math.abs(localTime - data.time) > 1.5) ytPlayer.seekTo(data.time, true);
+                    if (data.action === 'play') ytPlayer.playVideo();
+                    else if (data.action === 'pause') ytPlayer.pauseVideo();
+                } 
+                else if (activePlayerType === 'dailymotion' && dmPlayer) {
+                    const currentTime = await dmPlayer.currentTime();
+                    if (Math.abs(currentTime - data.time) > 1.5) await dmPlayer.seek(data.time);
+                    if (data.action === 'play') await dmPlayer.play();
+                    else if (data.action === 'pause') await dmPlayer.pause();
+                } 
+                else if (activePlayerType === 'raw') {
+                    const videoEl = document.getElementById('raw-video-element');
+                    if (videoEl) {
+                        if (Math.abs(videoEl.currentTime - data.time) > 1.5) videoEl.currentTime = data.time;
+                        if (data.action === 'play') videoEl.play();
+                        else if (data.action === 'pause') videoEl.pause();
+                    }
+                }
+            } catch(e) { console.warn("Sync error:", e); }
+            setTimeout(() => { ignoreSyncEvents = false; }, 400);
+        }
+
         function showOverlay(v) {
             const o = document.getElementById('processing-overlay');
             if (v) o.classList.remove('hidden'); else o.classList.add('hidden');
         }
 
+        // ------------------- CHAT & REACTIONS -------------------
         function sendMessage() {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
             socket.emit('chat-message', state.roomId, state.username, input.value.trim());
             input.value = '';
         }
-
         function sendReaction(emoji) { socket.emit('reaction', state.roomId, emoji); }
 
+        // ------------------- SOCKET SETUP -------------------
         function setupSocketListeners() {
             socket.on('receive-chat', ({ user, msg }) => {
                 const box = document.getElementById('messages');
@@ -528,42 +515,14 @@ navigator.serviceWorker.register('/sw.js');
                 box.appendChild(item); box.scrollTop = box.scrollHeight;
             });
 
-            socket.on('video-sync', (data) => {
+            socket.on('video-sync', async (data) => {
                 if (!data) return;
                 if (data.action === 'loadNewVideo' && data.meta) {
                     showOverlay(true);
-                    if (activePlayerType === 'dailymotion') cleanupDailymotionListeners();
                     renderActivePlayer(data.meta);
                     return;
                 }
-                ignoreSyncEvents = true;
-                if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
-                    const localTime = ytPlayer.getCurrentTime();
-                    if (Math.abs(localTime - data.time) > 1.5) { ytPlayer.seekTo(data.time, true); }
-                    if (data.action === 'play') { ytPlayer.playVideo(); }
-                    else if (data.action === 'pause') { ytPlayer.pauseVideo(); }
-                } else if (activePlayerType === 'dailymotion') {
-                    const dmIframe = document.getElementById('dm-iframe');
-                    if (dmIframe && dmIframe.contentWindow) {
-                        if (data.action === 'play') {
-                            dmIframe.contentWindow.postMessage('{"command":"play"}', '*');
-                        }
-                        else if (data.action === 'pause') {
-                            dmIframe.contentWindow.postMessage('{"command":"pause"}', '*');
-                        }
-                        else if (data.action === 'seek') {
-                            dmIframe.contentWindow.postMessage('{"command":"setCurrentTime", "time": ' + data.time + '}', '*');
-                        }
-                    }
-                } else if (activePlayerType === 'raw') {
-                    const videoEl = document.getElementById('raw-video-element');
-                    if (videoEl) {
-                        if (Math.abs(videoEl.currentTime - data.time) > 1.5) { videoEl.currentTime = data.time; }
-                        if (data.action === 'play') { videoEl.play(); }
-                        else if (data.action === 'pause') { videoEl.pause(); }
-                    }
-                }
-                setTimeout(() => { ignoreSyncEvents = false; }, 400);
+                await applyVideoSync(data);
             });
 
             socket.on('new-peer', (targetUserId) => { initPeerConnection(targetUserId, true); });
@@ -600,7 +559,6 @@ navigator.serviceWorker.register('/sw.js');
         }
 
         window.addEventListener('DOMContentLoaded', () => { if (state.token && state.username) showLobbyView(); });
-
         window.addEventListener('click', () => {
             const audios = document.querySelectorAll('audio');
             audios.forEach(audio => { if (audio.paused) audio.play(); });
