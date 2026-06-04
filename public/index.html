@@ -24,6 +24,7 @@ navigator.serviceWorker.register('/sw.js');
     </style>
 </head>
 <body class="p-4 flex flex-col min-h-screen justify-center items-center">
+
     <div id="auth-screen" class="w-full max-w-md panel-bg p-6 rounded-xl space-y-4">
         <div class="text-center">
             <h1 class="text-3xl font-bold text-pink-500 pink-glow inline-block px-4 py-1 rounded-md mb-2">
@@ -31,26 +32,25 @@ navigator.serviceWorker.register('/sw.js');
             </h1>
             <p class="text-xs text-gray-400">Dosto ke sath YouTube aur multi-platform videos dekho ek sath</p>
         </div>
+
         <div id="auth-tabs" class="flex border-b border-gray-800 text-sm font-semibold">
             <button id="tab-login" onclick="toggleAuthForm('login')" class="flex-1 pb-2 border-b-2 border-pink-500 text-pink-500">Login</button>
             <button id="tab-register" onclick="toggleAuthForm('register')" class="flex-1 pb-2 border-b-2 border-transparent text-gray-400">Register</button>
         </div>
+
         <div id="login-form" class="space-y-3">
             <input type="email" id="login-email" placeholder="Email Address" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <input type="password" id="login-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <button onclick="handleLogin()" class="w-full bg-pink-600 hover:bg-pink-700 py-2 rounded font-bold text-sm transition">Sign In</button>
         </div>
+
         <div id="register-form" class="space-y-3 hidden">
             <input type="text" id="reg-user" placeholder="Choose Username" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <input type="email" id="reg-email" placeholder="Email Address" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <input type="password" id="reg-pass" placeholder="Password" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-pink-500">
             <button onclick="handleRegister()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-bold text-sm transition">Create Account</button>
         </div>
-        <div id="verify-msg" class="hidden text-center p-3 bg-yellow-900/30 border border-yellow-600 rounded-lg">
-            <p class="text-yellow-400 text-sm font-bold">📧 Email Verify Karein!</p>
-            <p class="text-xs text-gray-400 mt-1">Aapke email pe verification link bheja gaya hai. Verify karne ke baad login karein.</p>
-            <button onclick="toggleAuthForm('login')" class="mt-2 text-xs text-pink-400 underline">Login pe jao</button>
-        </div>
+
         <div id="lobby-panel" class="pt-4 border-t border-gray-800 space-y-3 hidden">
             <div class="flex justify-between items-center mb-1">
                 <div class="text-xs font-bold text-pink-400 uppercase tracking-wider">Welcome, <span id="welcome-user" class="text-white">User</span></div>
@@ -81,6 +81,7 @@ navigator.serviceWorker.register('/sw.js');
                 <button onclick="leavePartyRoom()" class="text-xs bg-red-600 hover:bg-red-700 px-3 py-1 rounded font-bold transition"><i class="fa-solid fa-arrow-left"></i> Leave Room</button>
             </div>
         </div>
+
         <div class="grid grid-cols-3 gap-2">
             <button class="bg-red-600 hover:bg-red-700 py-2 rounded font-bold text-sm flex items-center justify-center gap-2">
                 <i class="fa-brands fa-youtube"></i> YouTube
@@ -92,25 +93,29 @@ navigator.serviceWorker.register('/sw.js');
                 <i class="fa-solid fa-microphone-slash"></i> Mic Off
             </button>
         </div>
+
         <div class="flex gap-2">
             <input type="text" id="video-url-input" placeholder="YouTube, Dailymotion ya MP4 Video Link paste karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500">
             <button onclick="playNewVideoFromInput()" class="bg-red-600 hover:bg-red-700 px-5 rounded text-white flex items-center justify-center transition">
                 <i class="fa-solid fa-play"></i>
             </button>
         </div>
+
         <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden panel-bg flex items-center justify-center">
             <div id="processing-overlay" class="absolute top-2 right-2 bg-black/80 border border-pink-500 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 z-50 hidden">
                 <i class="fa-solid fa-tv animate-pulse text-pink-500"></i> Video Syncing...
             </div>
             <div id="player-container" class="w-full h-full">
-                <div class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
+                <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
                     <i class="fa-solid fa-film text-4xl mb-2"></i>
                     <p class="font-semibold text-sm text-gray-300">YouTube, Dailymotion ya Video Link Share Karo</p>
                     <p class="text-xs text-gray-500 mt-1">Koi bhi online stream URL lekar upar play karo</p>
                 </div>
             </div>
         </div>
+
         <div id="remote-audios" class="hidden"></div>
+
         <div class="flex justify-between bg-gray-900/50 p-2 rounded-lg border border-gray-800">
             <button onclick="sendReaction('❤️')" class="text-xl transform hover:scale-125 transition">❤️</button>
             <button onclick="sendReaction('😂')" class="text-xl transform hover:scale-125 transition">😂</button>
@@ -120,6 +125,7 @@ navigator.serviceWorker.register('/sw.js');
             <button onclick="sendReaction('🔥')" class="text-xl transform hover:scale-125 transition">🔥</button>
             <button onclick="sendReaction('💀')" class="text-xl transform hover:scale-125 transition">💀</button>
         </div>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="panel-bg p-3 rounded-lg md:col-span-1">
                 <h3 class="text-pink-400 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -163,27 +169,11 @@ navigator.serviceWorker.register('/sw.js');
             ]
         };
 
-        // Server se token validate karo
-        async function validateToken() {
-            if (!state.token || !state.username) return false;
-            try {
-                const res = await fetch('/api/validate', {
-                    method: 'POST',
-                    headers: { 'Authorization': state.token }
-                });
-                const data = await res.json();
-                return data.success;
-            } catch (err) {
-                return false;
-            }
-        }
-
         function toggleAuthForm(mode) {
             const loginF = document.getElementById('login-form');
             const regF = document.getElementById('register-form');
             const tabL = document.getElementById('tab-login');
             const tabR = document.getElementById('tab-register');
-            document.getElementById('verify-msg').classList.add('hidden');
             if (mode === 'login') {
                 loginF.classList.remove('hidden'); regF.classList.add('hidden');
                 tabL.className = "flex-1 pb-2 border-b-2 border-pink-500 text-pink-500";
@@ -227,10 +217,12 @@ navigator.serviceWorker.register('/sw.js');
                 });
                 const data = await res.json();
                 if (data.success) {
-                    document.getElementById('register-form').classList.add('hidden');
-                    document.getElementById('login-form').classList.add('hidden');
-                    document.getElementById('auth-tabs').classList.add('hidden');
-                    document.getElementById('verify-msg').classList.remove('hidden');
+                    state.username = data.username;
+                    state.token = data.token;
+                    localStorage.setItem('wp_username', data.username);
+                    localStorage.setItem('wp_token', data.token);
+                    showLobbyView();
+                    alert("Account Created!");
                 } else { alert(data.message); }
             } catch (err) { alert("Registration failed!"); }
         }
@@ -239,7 +231,6 @@ navigator.serviceWorker.register('/sw.js');
             document.getElementById('login-form').classList.add('hidden');
             document.getElementById('register-form').classList.add('hidden');
             document.getElementById('auth-tabs').classList.add('hidden');
-            document.getElementById('verify-msg').classList.add('hidden');
             document.getElementById('lobby-panel').classList.remove('hidden');
             document.getElementById('welcome-user').innerText = state.username;
         }
@@ -284,14 +275,6 @@ navigator.serviceWorker.register('/sw.js');
             }
             Object.keys(peers).forEach(id => { if (peers[id]) peers[id].close(); delete peers[id]; });
             document.getElementById('remote-audios').innerHTML = '';
-            activePlayerType = null;
-            ytPlayer = null;
-            window.dmPlayer = null;
-            document.getElementById('player-container').innerHTML = `
-                <div class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
-                    <i class="fa-solid fa-film text-4xl mb-2"></i>
-                    <p class="font-semibold text-sm text-gray-300">YouTube, Dailymotion ya Video Link Share Karo</p>
-                </div>`;
             document.getElementById('party-room-screen').classList.add('hidden');
             document.getElementById('auth-screen').classList.remove('hidden');
             showLobbyView();
@@ -374,7 +357,6 @@ navigator.serviceWorker.register('/sw.js');
         function renderActivePlayer(meta) {
             const container = document.getElementById('player-container');
             ytPlayer = null;
-            window.dmPlayer = null;
             if (meta.type === 'youtube') {
                 activePlayerType = 'youtube';
                 container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
@@ -385,8 +367,8 @@ navigator.serviceWorker.register('/sw.js');
                 });
             } else if (meta.type === 'dailymotion') {
                 activePlayerType = 'dailymotion';
-                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1&api=postMessage&id=dm-iframe" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
-                window.dmMessageHandler = (e) => {
+                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1&api=postMessage" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
+                window.addEventListener('message', (e) => {
                     if (!e.data || typeof e.data !== 'string') return;
                     try {
                         const msg = JSON.parse(e.data);
@@ -396,14 +378,9 @@ navigator.serviceWorker.register('/sw.js');
                         } else if (msg.event === 'pause') {
                             if (ignoreSyncEvents) return;
                             socket.emit('video-sync', state.roomId, { action: 'pause', time: msg.time || 0 });
-                        } else if (msg.event === 'seeked') {
-                            if (ignoreSyncEvents) return;
-                            socket.emit('video-sync', state.roomId, { action: 'seek', time: msg.time || 0 });
                         }
                     } catch(err) {}
-                };
-                window.removeEventListener('message', window.dmMessageHandler);
-                window.addEventListener('message', window.dmMessageHandler);
+                });
             } else if (meta.type === 'raw') {
                 activePlayerType = 'raw';
                 container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
@@ -475,10 +452,9 @@ navigator.serviceWorker.register('/sw.js');
                     else if (data.action === 'pause') { ytPlayer.pauseVideo(); }
                 } else if (activePlayerType === 'dailymotion') {
                     const dmIframe = document.getElementById('dm-iframe');
-                    if (dmIframe && dmIframe.contentWindow) {
-                        if (data.action === 'play') dmIframe.contentWindow.postMessage(JSON.stringify({command: 'play'}), '*');
-                        else if (data.action === 'pause') dmIframe.contentWindow.postMessage(JSON.stringify({command: 'pause'}), '*');
-                        else if (data.action === 'seek') dmIframe.contentWindow.postMessage(JSON.stringify({command: 'seek', time: data.time}), '*');
+                    if (dmIframe) {
+                        if (data.action === 'play') dmIframe.contentWindow.postMessage('{"command":"play"}', '*');
+                        else if (data.action === 'pause') dmIframe.contentWindow.postMessage('{"command":"pause"}', '*');
                     }
                 } else if (activePlayerType === 'raw') {
                     const videoEl = document.getElementById('raw-video-element');
@@ -488,7 +464,7 @@ navigator.serviceWorker.register('/sw.js');
                         else if (data.action === 'pause') { videoEl.pause(); }
                     }
                 }
-                setTimeout(() => { ignoreSyncEvents = false; }, 1000);
+                setTimeout(() => { ignoreSyncEvents = false; }, 400);
             });
 
             socket.on('new-peer', (targetUserId) => { initPeerConnection(targetUserId, true); });
@@ -524,19 +500,7 @@ navigator.serviceWorker.register('/sw.js');
             socket.on('room-users-update', (data) => { if (data && data.users) updateOnlineUsersList(data.users); });
         }
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            if (state.token && state.username) {
-                const valid = await validateToken();
-                if (valid) {
-                    showLobbyView();
-                } else {
-                    localStorage.removeItem('wp_username');
-                    localStorage.removeItem('wp_token');
-                    state.username = '';
-                    state.token = '';
-                }
-            }
-        });
+        window.addEventListener('DOMContentLoaded', () => { if (state.token && state.username) showLobbyView(); });
 
         window.addEventListener('click', () => {
             const audios = document.querySelectorAll('audio');
@@ -549,4 +513,4 @@ navigator.serviceWorker.register('/sw.js');
         </p>
     </footer>
 </body>
-                                                                                                                                              </html>
+    </html>
