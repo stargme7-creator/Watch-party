@@ -14,8 +14,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
-    <!-- Dailymotion Player SDK (only for standalone player, no sync) -->
-    <script src="https://geo.dailymotion.com/player.js"></script>
     <style>
         body { background-color: #0d0e15; color: #ffffff; font-family: sans-serif; }
         .pink-glow { text-shadow: 0 0 10px #ff007f; box-shadow: 0 0 15px rgba(255, 0, 127, 0.2); }
@@ -24,7 +22,6 @@
         .msg-item { margin-bottom: 6px; padding: 4px 8px; border-bottom: 1px solid #1f2335; }
         .msg-user { color: #ff007f; font-weight: bold; }
         iframe, video { width: 100%; height: 100%; border-radius: 8px; border: none; }
-        .dm-player-container { width: 100%; height: 100%; }
         .error-toast { background: #ff4444; color: white; padding: 8px 16px; border-radius: 8px; position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: none; font-size: 14px; }
     </style>
 </head>
@@ -124,12 +121,12 @@
     </div>
 
     <script>
-        // ------------------- GLOBALS -------------------
+        // ---------- GLOBALS ----------
         let socket;
         let ytPlayer = null;
-        let dmPlayer = null;
         let activePlayerType = null; // 'youtube', 'dailymotion', 'raw'
         let ignoreSyncEvents = false;
+        let currentDmIframe = null;   // For Dailymotion iframe (no sync)
         const peers = {};
 
         const state = {
@@ -154,7 +151,7 @@
             setTimeout(() => { toast.style.display = 'none'; }, 4000);
         }
 
-        // ------------------- AUTH -------------------
+        // ---------- AUTH ----------
         function toggleAuthForm(mode) {
             const loginF = document.getElementById('login-form');
             const regF = document.getElementById('register-form');
@@ -265,7 +262,7 @@
             showLobbyView();
         }
 
-        // ------------------- MIC & WEBRTC -------------------
+        // ---------- MIC & WEBRTC ----------
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
             if (!state.micActive) {
@@ -315,14 +312,17 @@
             return pc;
         }
 
-        // ------------------- VIDEO PARSING & LOADING -------------------
+        // ---------- VIDEO URL PARSING ----------
         function parseVideoUrl(url) {
             if (!url) return null;
             url = url.trim();
+            // Raw MP4
             if (url.match(/\.(mp4|webm|ogg|m3u8)($|\?)/i)) return { type: 'raw', id: url };
+            // YouTube
             const ytRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=))([\w-]{11})/;
             const ytMatch = url.match(ytRegex);
             if (ytMatch) return { type: 'youtube', id: ytMatch[1] };
+            // Dailymotion - simple regex
             const dmRegex = /dailymotion\.com\/video\/([a-zA-Z0-9]+)/;
             const dmMatch = url.match(dmRegex);
             if (dmMatch) return { type: 'dailymotion', id: dmMatch[1] };
@@ -331,30 +331,23 @@
 
         function destroyPlayers() {
             if (ytPlayer && typeof ytPlayer.destroy === 'function') ytPlayer.destroy();
-            if (dmPlayer && typeof dmPlayer.destroy === 'function') dmPlayer.destroy();
             ytPlayer = null;
-            dmPlayer = null;
+            if (currentDmIframe) {
+                currentDmIframe = null;
+            }
             activePlayerType = null;
         }
 
-        // Dailymotion: local only, no events sent to server
-        function initDailymotionLocal(videoId) {
-            const container = document.createElement('div');
-            container.id = 'dm-player-container';
-            container.className = 'w-full h-full';
-            document.getElementById('player-container').innerHTML = '';
-            document.getElementById('player-container').appendChild(container);
-            dmPlayer = DM.player(container, {
-                video: videoId,
-                params: { autoplay: true, controls: true, 'api': true },
-                events: {
-                    apiready: () => console.log("DM ready (no sync)"),
-                    error: (e) => showError("Dailymotion error")
-                }
-            });
+        // Dailymotion: simple iframe embed (no sync, guaranteed to play)
+        function loadDailymotion(videoId) {
+            const container = document.getElementById('player-container');
+            container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${videoId}?autoplay=1&controls=1" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
+            currentDmIframe = document.getElementById('dm-iframe');
+            activePlayerType = 'dailymotion';
+            // No sync listeners attached
         }
 
-        // YouTube: with sync
+        // YouTube with sync
         function onYouTubeStateChange(event) {
             if (ignoreSyncEvents) return;
             if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
@@ -366,6 +359,29 @@
             }
         }
 
+        function loadYouTube(videoId) {
+            const container = document.getElementById('player-container');
+            container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
+            ytPlayer = new YT.Player('yt-iframe-placeholder', {
+                videoId: videoId,
+                playerVars: { autoplay: 1, controls: 1, rel: 0, enablejsapi: 1 },
+                events: {
+                    onStateChange: onYouTubeStateChange,
+                    onError: () => showError("YouTube error")
+                }
+            });
+            activePlayerType = 'youtube';
+        }
+
+        function loadRawMP4(url) {
+            const container = document.getElementById('player-container');
+            container.innerHTML = `<video id="raw-video" controls autoplay class="w-full h-full"><source src="${url}" type="video/mp4"></video>`;
+            const videoEl = document.getElementById('raw-video');
+            videoEl.onerror = () => showError("MP4 load failed");
+            activePlayerType = 'raw';
+            // No sync for raw
+        }
+
         function loadVideo() {
             const url = document.getElementById('video-url-input').value;
             const meta = parseVideoUrl(url);
@@ -374,34 +390,17 @@
                 return;
             }
             destroyPlayers();
-            const container = document.getElementById('player-container');
             if (meta.type === 'youtube') {
-                activePlayerType = 'youtube';
-                container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
-                ytPlayer = new YT.Player('yt-iframe-placeholder', {
-                    videoId: meta.id,
-                    playerVars: { autoplay: 1, controls: 1, rel: 0, enablejsapi: 1 },
-                    events: {
-                        onStateChange: onYouTubeStateChange,
-                        onError: () => showError("YouTube error")
-                    }
-                });
+                loadYouTube(meta.id);
             } else if (meta.type === 'dailymotion') {
-                activePlayerType = 'dailymotion';
-                initDailymotionLocal(meta.id);
-                // No sync events attached
+                loadDailymotion(meta.id);
             } else if (meta.type === 'raw') {
-                activePlayerType = 'raw';
-                container.innerHTML = `<video id="raw-video" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
-                const videoEl = document.getElementById('raw-video');
-                videoEl.onerror = () => showError("MP4 load failed");
-                // raw video sync optional? but we keep it local only to avoid complexity; if you want raw sync, can add but let's keep as local per user
-                // To be consistent with Dailymotion, raw also no sync.
+                loadRawMP4(meta.id);
             }
         }
 
-        // Apply YouTube sync from socket (only if activePlayerType is youtube)
-        async function applySync(data) {
+        // Apply YouTube sync from socket
+        async function applyYoutubeSync(data) {
             if (activePlayerType !== 'youtube') return;
             if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
             ignoreSyncEvents = true;
@@ -414,7 +413,7 @@
             setTimeout(() => { ignoreSyncEvents = false; }, 400);
         }
 
-        // ------------------- CHAT & REACTIONS -------------------
+        // ---------- CHAT & REACTIONS ----------
         function sendMessage() {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
@@ -423,7 +422,7 @@
         }
         function sendReaction(emoji) { socket.emit('reaction', state.roomId, emoji); }
 
-        // ------------------- SOCKET LISTENERS -------------------
+        // ---------- SOCKET LISTENERS ----------
         function setupSocketListeners() {
             socket.on('receive-chat', ({ user, msg }) => {
                 const box = document.getElementById('messages');
@@ -434,17 +433,15 @@
                 box.scrollTop = box.scrollHeight;
             });
 
-            socket.on('receive-reaction', (emoji) => {
-                // optional: show floating emoji
-            });
+            socket.on('receive-reaction', (emoji) => { /* optional */ });
 
             socket.on('video-sync', async (data) => {
                 if (!data) return;
                 if (data.action === 'loadNewVideo' && data.meta) {
-                    // ignore loadNewVideo from others to avoid forced loads
+                    // ignore forced loads
                     return;
                 }
-                await applySync(data);
+                await applyYoutubeSync(data);
             });
 
             socket.on('new-peer', (targetUserId) => { initPeerConnection(targetUserId, true); });
@@ -486,4 +483,4 @@
         <p>&copy; 2026 Watch Party App. <a href="https://www.termsfeed.com/live/bfae1679-234e-4d2b-bbd4-21438b92aa79" target="_blank">Privacy Policy</a></p>
     </footer>
 </body>
-    </html>
+</html>
