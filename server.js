@@ -26,15 +26,11 @@ const pool = new Pool({
 });
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    host: "sandbox.smtp.mailtrap.io", 
+    port: 2525,                     
     auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
-    },
-    tls: {
-        rejectUnauthorized: false
+        user: "YOUR_MAILTRAP_USERNAME",
+        pass: "YOUR_MAILTRAP_PASSWORD"  
     }
 });
 
