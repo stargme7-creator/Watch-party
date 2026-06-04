@@ -231,9 +231,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Server live on port ${PORT}`));
-// Verification route
-app.get('/verify', async (req, res) => {
-    const { email } = req.query;
-    try {
-        
+// Verification route (Email verification bypass)
+app.get('/verify', (req, res) => {
+    res.send("<h1>Verified!</h1><p>Aapka account verify ho gaya hai.</p>");
 });
