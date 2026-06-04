@@ -133,7 +133,7 @@ app.post('/api/register', async (req, res) => {
         try {
             await transporter.sendMail(mailOptions);
         } catch (mailErr) {
-            console.error("Mail error:", mailErr);
+            console.error("DEBUG: Asli Mail Error:", mailErr);
         }
 
         return res.json({
