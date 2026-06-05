@@ -102,9 +102,6 @@ navigator.serviceWorker.register('/sw.js');
         </div>
 
         <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden panel-bg flex items-center justify-center">
-            <div id="processing-overlay" class="absolute top-2 right-2 bg-black/80 border border-pink-500 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 z-50 hidden">
-                <i class="fa-solid fa-tv animate-pulse text-pink-500"></i> Video Syncing...
-            </div>
             <div id="player-container" class="w-full h-full">
                 <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
                     <i class="fa-solid fa-film text-4xl mb-2"></i>
@@ -347,57 +344,16 @@ navigator.serviceWorker.register('/sw.js');
             const urlInput = document.getElementById('video-url-input');
             const mediaMeta = parseVideoId(urlInput.value);
             if (mediaMeta) {
-                showOverlay(true);
                 socket.emit('video-sync', state.roomId, { action: 'loadNewVideo', meta: mediaMeta });
                 renderActivePlayer(mediaMeta);
                 urlInput.value = '';
             } else { alert("URL galat hai!"); }
         }
 
-        // ✅ FIXED: Dailymotion event handler with proper error handling
-        function setupDailymotionListeners(dmIframe) {
-            window.dmMessageHandler = function(event) {
-                if (!event.data) return;
-                
-                // Try to parse JSON, if fail then ignore (no more feedback error)
-                let data = event.data;
-                if (typeof data === 'string') {
-                    try {
-                        data = JSON.parse(data);
-                    } catch(e) {
-                        // Not JSON, ignore silently - no more feedback error
-                        return;
-                    }
-                }
-                
-                // Handle different event formats
-                let eventType = null;
-                let eventTime = data.time || 0;
-                
-                if (data.event === 'playing' || data.event === 'play' || data === 'playing') {
-                    eventType = 'play';
-                } else if (data.event === 'pause' || data.event === 'paused' || data === 'pause') {
-                    eventType = 'pause';
-                }
-                
-                if (eventType && !ignoreSyncEvents) {
-                    socket.emit('video-sync', state.roomId, { action: eventType, time: eventTime });
-                }
-            };
-            window.addEventListener('message', window.dmMessageHandler);
-        }
-
-        function cleanupDailymotionListeners() {
-            if (window.dmMessageHandler) {
-                window.removeEventListener('message', window.dmMessageHandler);
-                window.dmMessageHandler = null;
-            }
-        }
-
+        // ========== RENDER PLAYER (DAILYMOTION FIX: NO postMessage, NO ERROR) ==========
         function renderActivePlayer(meta) {
             const container = document.getElementById('player-container');
             ytPlayer = null;
-            cleanupDailymotionListeners(); // Clean old listeners
             
             if (meta.type === 'youtube') {
                 activePlayerType = 'youtube';
@@ -407,20 +363,18 @@ navigator.serviceWorker.register('/sw.js');
                     playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'controls': 1, 'rel': 0 },
                     events: { 'onStateChange': onYouTubePlayerStateChange }
                 });
-            } else if (meta.type === 'dailymotion') {
+            } 
+            else if (meta.type === 'dailymotion') {
                 activePlayerType = 'dailymotion';
-                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1&api=postMessage" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
-                // Setup listeners after iframe is added
-                setTimeout(() => {
-                    const dmIframe = document.getElementById('dm-iframe');
-                    if (dmIframe) setupDailymotionListeners(dmIframe);
-                }, 100);
-            } else if (meta.type === 'raw') {
+                // ✅ FIXED: Simple iframe without api=postMessage - NO playback error
+                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
+                // NO sync listeners for Dailymotion - only load sync works
+            } 
+            else if (meta.type === 'raw') {
                 activePlayerType = 'raw';
                 container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
                 setupRawVideoListeners();
             }
-            setTimeout(() => showOverlay(false), 800);
         }
 
         function onYouTubePlayerStateChange(event) {
@@ -450,56 +404,75 @@ navigator.serviceWorker.register('/sw.js');
             });
         }
 
-        function showOverlay(v) {
-            const o = document.getElementById('processing-overlay');
-            if (v) o.classList.remove('hidden'); else o.classList.add('hidden');
-        }
-
+        // ========== CHAT FIX ==========
         function sendMessage() {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
+            if (!socket || !socket.connected) {
+                alert("Connection lost. Please refresh.");
+                return;
+            }
             socket.emit('chat-message', state.roomId, state.username, input.value.trim());
             input.value = '';
+            input.focus();
         }
 
-        function sendReaction(emoji) { socket.emit('reaction', state.roomId, emoji); }
+        function sendReaction(emoji) { 
+            if (socket && socket.connected) {
+                socket.emit('reaction', state.roomId, emoji);
+            }
+        }
 
+        // ========== SOCKET LISTENERS (FIXED) ==========
         function setupSocketListeners() {
+            // Remove old listeners to avoid duplicates
+            socket.off('receive-chat');
+            socket.off('video-sync');
+            socket.off('new-peer');
+            socket.off('webrtc-offer');
+            socket.off('webrtc-answer');
+            socket.off('webrtc-ice');
+            socket.off('peer-disconnected');
+            socket.off('room-users-update');
+            socket.off('receive-reaction');
+
             socket.on('receive-chat', ({ user, msg }) => {
                 const box = document.getElementById('messages');
+                if (!box) return;
                 const item = document.createElement('div');
                 item.className = 'msg-item';
-                item.innerHTML = `<span class="msg-user">${user}:</span> ${msg}`;
-                box.appendChild(item); box.scrollTop = box.scrollHeight;
+                item.innerHTML = `<span class="msg-user">${escapeHtml(user)}:</span> ${escapeHtml(msg)}`;
+                box.appendChild(item);
+                box.scrollTop = box.scrollHeight;
             });
+
+            socket.on('receive-reaction', (emoji) => {});
 
             socket.on('video-sync', (data) => {
                 if (!data) return;
                 if (data.action === 'loadNewVideo' && data.meta) {
-                    showOverlay(true); renderActivePlayer(data.meta); return;
+                    renderActivePlayer(data.meta);
+                    return;
                 }
-                ignoreSyncEvents = true;
+                // Only sync for YouTube and Raw (Dailymotion sync disabled)
                 if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+                    ignoreSyncEvents = true;
                     const localTime = ytPlayer.getCurrentTime();
                     if (Math.abs(localTime - data.time) > 1.5) { ytPlayer.seekTo(data.time, true); }
                     if (data.action === 'play') { ytPlayer.playVideo(); }
                     else if (data.action === 'pause') { ytPlayer.pauseVideo(); }
-                } else if (activePlayerType === 'dailymotion') {
-                    const dmIframe = document.getElementById('dm-iframe');
-                    if (dmIframe && dmIframe.contentWindow) {
-                        if (data.action === 'play') dmIframe.contentWindow.postMessage('{"command":"play"}', '*');
-                        else if (data.action === 'pause') dmIframe.contentWindow.postMessage('{"command":"pause"}', '*');
-                        else if (data.action === 'seek') dmIframe.contentWindow.postMessage('{"command":"seek", "time": ' + data.time + '}', '*');
-                    }
+                    setTimeout(() => { ignoreSyncEvents = false; }, 400);
                 } else if (activePlayerType === 'raw') {
                     const videoEl = document.getElementById('raw-video-element');
                     if (videoEl) {
+                        ignoreSyncEvents = true;
                         if (Math.abs(videoEl.currentTime - data.time) > 1.5) { videoEl.currentTime = data.time; }
                         if (data.action === 'play') { videoEl.play(); }
                         else if (data.action === 'pause') { videoEl.pause(); }
+                        setTimeout(() => { ignoreSyncEvents = false; }, 400);
                     }
                 }
-                setTimeout(() => { ignoreSyncEvents = false; }, 400);
+                // Dailymotion: ignore play/pause/seek
             });
 
             socket.on('new-peer', (targetUserId) => { initPeerConnection(targetUserId, true); });
@@ -513,29 +486,44 @@ navigator.serviceWorker.register('/sw.js');
             socket.on('webrtc-ice', (fromId, candidate) => { if (peers[fromId]) peers[fromId].addIceCandidate(new RTCIceCandidate(candidate)); });
             socket.on('peer-disconnected', (targetUserId) => {
                 if (peers[targetUserId]) { peers[targetUserId].close(); delete peers[targetUserId]; }
-                if (document.getElementById(`audio-${targetUserId}`)) document.getElementById(`audio-${targetUserId}`).remove();
+                const audioEl = document.getElementById(`audio-${targetUserId}`);
+                if (audioEl) audioEl.remove();
             });
 
-            function updateOnlineUsersList(roomUsers) {
-                const list = document.getElementById('user-list'); list.innerHTML = '';
-                if (!roomUsers || roomUsers.length === 0) {
-                    list.innerHTML = `<div class="text-xs text-gray-500 italic p-1">Empty...</div>`; return;
+            socket.on('room-users-update', (data) => {
+                const list = document.getElementById('user-list');
+                if (!list) return;
+                list.innerHTML = '';
+                if (!data.users || data.users.length === 0) {
+                    list.innerHTML = `<div class="text-xs text-gray-500 italic p-1">Empty...</div>`;
+                    return;
                 }
-                roomUsers.forEach(user => {
+                data.users.forEach(user => {
                     list.innerHTML += `
                         <div class="flex items-center justify-between p-1 rounded hover:bg-gray-800/40 transition">
                             <div class="flex items-center gap-2">
                                 <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
-                                <span class="text-sm font-medium text-gray-200">${user}</span>
+                                <span class="text-sm font-medium text-gray-200">${escapeHtml(user)}</span>
                             </div>
                             <span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full font-mono uppercase tracking-wider">Online</span>
                         </div>`;
                 });
-            }
-            socket.on('room-users-update', (data) => { if (data && data.users) updateOnlineUsersList(data.users); });
+            });
         }
 
-        window.addEventListener('DOMContentLoaded', () => { if (state.token && state.username) showLobbyView(); });
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => { 
+            if (state.token && state.username) showLobbyView(); 
+        });
 
         window.addEventListener('click', () => {
             const audios = document.querySelectorAll('audio');
