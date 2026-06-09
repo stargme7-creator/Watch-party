@@ -243,19 +243,50 @@ navigator.serviceWorker.register('/sw.js');
             document.getElementById('register-form').classList.add('hidden');
         }
 
-        function enterPartyRoom(action) {
+        // ---------- ROOM ENTRY FIX ----------
+        async function enterPartyRoom(action) {
             if (action === 'create') {
-                state.roomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
-            } else {
+                const newRoomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
+                // First, create room via server
+                if (!socket) {
+                    socket = io();
+                }
+                return new Promise((resolve) => {
+                    socket.emit('create-room', newRoomId, state.username, (response) => {
+                        if (response.success) {
+                            state.roomId = newRoomId;
+                            proceedToRoom();
+                            resolve(true);
+                        } else {
+                            alert("Room creation failed: " + response.message);
+                            resolve(false);
+                        }
+                    });
+                });
+            } else if (action === 'join') {
                 const rInput = document.getElementById('join-room-id').value.trim().toUpperCase();
-                if (!rInput) return alert("Please enter a valid Room ID!");
-                state.roomId = rInput;
+                if (!rInput) return alert("Please enter a Room ID!");
+                // Check if room exists before trying to join
+                if (!socket) {
+                    socket = io();
+                }
+                socket.emit('check-room', rInput, (response) => {
+                    if (response.exists) {
+                        state.roomId = rInput;
+                        proceedToRoom();
+                    } else {
+                        alert("Room does not exist. Please create a new room or check the ID.");
+                    }
+                });
             }
+        }
+
+        function proceedToRoom() {
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('party-room-screen').classList.remove('hidden');
             document.body.className = "p-4";
             document.getElementById('room-display-id').innerText = state.roomId;
-            if (socket) { socket.disconnect(); }
+            if (socket && socket.connected) socket.disconnect();
             socket = io();
             socket.emit('join-room', { roomId: state.roomId, username: state.username });
             setupSocketListeners();
@@ -277,6 +308,7 @@ navigator.serviceWorker.register('/sw.js');
             showLobbyView();
         }
 
+        // ------------------- MIC & WEBRTC (unchanged) -------------------
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
             if (!state.micActive) {
@@ -327,6 +359,7 @@ navigator.serviceWorker.register('/sw.js');
             return pc;
         }
 
+        // ------------------- URL PARSING & VIDEO PLAYER -------------------
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
@@ -350,11 +383,9 @@ navigator.serviceWorker.register('/sw.js');
             } else { alert("URL galat hai!"); }
         }
 
-        // ========== RENDER PLAYER (DAILYMOTION FIX: NO postMessage, NO ERROR) ==========
         function renderActivePlayer(meta) {
             const container = document.getElementById('player-container');
             ytPlayer = null;
-            
             if (meta.type === 'youtube') {
                 activePlayerType = 'youtube';
                 container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
@@ -363,14 +394,10 @@ navigator.serviceWorker.register('/sw.js');
                     playerVars: { 'autoplay': 1, 'enablejsapi': 1, 'controls': 1, 'rel': 0 },
                     events: { 'onStateChange': onYouTubePlayerStateChange }
                 });
-            } 
-            else if (meta.type === 'dailymotion') {
+            } else if (meta.type === 'dailymotion') {
                 activePlayerType = 'dailymotion';
-                // ✅ FIXED: Simple iframe without api=postMessage - NO playback error
                 container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
-                // NO sync listeners for Dailymotion - only load sync works
-            } 
-            else if (meta.type === 'raw') {
+            } else if (meta.type === 'raw') {
                 activePlayerType = 'raw';
                 container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
                 setupRawVideoListeners();
@@ -404,7 +431,7 @@ navigator.serviceWorker.register('/sw.js');
             });
         }
 
-        // ========== CHAT FIX ==========
+        // ========== CHAT & REACTIONS ==========
         function sendMessage() {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
@@ -417,15 +444,14 @@ navigator.serviceWorker.register('/sw.js');
             input.focus();
         }
 
-        function sendReaction(emoji) { 
+        function sendReaction(emoji) {
             if (socket && socket.connected) {
                 socket.emit('reaction', state.roomId, emoji);
             }
         }
 
-        // ========== SOCKET LISTENERS (FIXED) ==========
+        // ========== SOCKET LISTENERS ==========
         function setupSocketListeners() {
-            // Remove old listeners to avoid duplicates
             socket.off('receive-chat');
             socket.off('video-sync');
             socket.off('new-peer');
@@ -435,6 +461,12 @@ navigator.serviceWorker.register('/sw.js');
             socket.off('peer-disconnected');
             socket.off('room-users-update');
             socket.off('receive-reaction');
+            socket.off('room-error');
+
+            socket.on('room-error', (data) => {
+                alert(data.message);
+                leavePartyRoom();
+            });
 
             socket.on('receive-chat', ({ user, msg }) => {
                 const box = document.getElementById('messages');
@@ -454,7 +486,6 @@ navigator.serviceWorker.register('/sw.js');
                     renderActivePlayer(data.meta);
                     return;
                 }
-                // Only sync for YouTube and Raw (Dailymotion sync disabled)
                 if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
                     ignoreSyncEvents = true;
                     const localTime = ytPlayer.getCurrentTime();
@@ -472,7 +503,6 @@ navigator.serviceWorker.register('/sw.js');
                         setTimeout(() => { ignoreSyncEvents = false; }, 400);
                     }
                 }
-                // Dailymotion: ignore play/pause/seek
             });
 
             socket.on('new-peer', (targetUserId) => { initPeerConnection(targetUserId, true); });
@@ -521,8 +551,8 @@ navigator.serviceWorker.register('/sw.js');
             });
         }
 
-        window.addEventListener('DOMContentLoaded', () => { 
-            if (state.token && state.username) showLobbyView(); 
+        window.addEventListener('DOMContentLoaded', () => {
+            if (state.token && state.username) showLobbyView();
         });
 
         window.addEventListener('click', () => {
@@ -536,4 +566,4 @@ navigator.serviceWorker.register('/sw.js');
         </p>
     </footer>
 </body>
-    </html>
+</html>
