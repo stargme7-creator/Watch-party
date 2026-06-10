@@ -243,35 +243,46 @@ navigator.serviceWorker.register('/sw.js');
             document.getElementById('register-form').classList.add('hidden');
         }
 
-        // ---------- ROOM ENTRY FIX ----------
+        // ---------- FIXED: Room Entry (Proper Async handling) ----------
         async function enterPartyRoom(action) {
             if (action === 'create') {
                 const newRoomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
-                // First, create room via server
-                if (!socket) {
+                
+                // Ensure socket is connected before emitting create-room
+                if (!socket || !socket.connected) {
                     socket = io();
-                }
-                return new Promise((resolve) => {
-                    socket.emit('create-room', newRoomId, state.username, (response) => {
-                        if (response.success) {
-                            state.roomId = newRoomId;
-                            proceedToRoom();
-                            resolve(true);
-                        } else {
-                            alert("Room creation failed: " + response.message);
-                            resolve(false);
-                        }
+                    await new Promise((resolve) => {
+                        socket.on('connect', resolve);
                     });
+                }
+                
+                // Create room via server and wait for response
+                socket.emit('create-room', newRoomId, state.username, (response) => {
+                    if (response && response.success) {
+                        state.roomId = newRoomId;
+                        proceedToRoom();
+                    } else {
+                        alert("Room creation failed: " + (response?.message || "Unknown error"));
+                        // Fallback: try direct join (for backward compatibility)
+                        state.roomId = newRoomId;
+                        proceedToRoom();
+                    }
                 });
+                
             } else if (action === 'join') {
                 const rInput = document.getElementById('join-room-id').value.trim().toUpperCase();
                 if (!rInput) return alert("Please enter a Room ID!");
-                // Check if room exists before trying to join
-                if (!socket) {
+                
+                // Ensure socket is connected
+                if (!socket || !socket.connected) {
                     socket = io();
+                    await new Promise((resolve) => {
+                        socket.on('connect', resolve);
+                    });
                 }
+                
                 socket.emit('check-room', rInput, (response) => {
-                    if (response.exists) {
+                    if (response && response.exists) {
                         state.roomId = rInput;
                         proceedToRoom();
                     } else {
@@ -282,14 +293,29 @@ navigator.serviceWorker.register('/sw.js');
         }
 
         function proceedToRoom() {
+            // Clean up old socket before creating new one
+            if (socket) {
+                socket.disconnect();
+            }
+            
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('party-room-screen').classList.remove('hidden');
             document.body.className = "p-4";
             document.getElementById('room-display-id').innerText = state.roomId;
-            if (socket && socket.connected) socket.disconnect();
+            
+            // Create new socket connection
             socket = io();
-            socket.emit('join-room', { roomId: state.roomId, username: state.username });
-            setupSocketListeners();
+            
+            socket.on('connect', () => {
+                console.log("Socket connected, joining room:", state.roomId);
+                socket.emit('join-room', { roomId: state.roomId, username: state.username });
+                setupSocketListeners();
+            });
+            
+            socket.on('connect_error', (err) => {
+                console.error("Socket connection error:", err);
+                alert("Connection error. Please refresh and try again.");
+            });
         }
 
         function leavePartyRoom() {
@@ -308,7 +334,6 @@ navigator.serviceWorker.register('/sw.js');
             showLobbyView();
         }
 
-        // ------------------- MIC & WEBRTC (unchanged) -------------------
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
             if (!state.micActive) {
@@ -359,7 +384,6 @@ navigator.serviceWorker.register('/sw.js');
             return pc;
         }
 
-        // ------------------- URL PARSING & VIDEO PLAYER -------------------
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
@@ -396,7 +420,7 @@ navigator.serviceWorker.register('/sw.js');
                 });
             } else if (meta.type === 'dailymotion') {
                 activePlayerType = 'dailymotion';
-                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
+                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>;
             } else if (meta.type === 'raw') {
                 activePlayerType = 'raw';
                 container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
@@ -431,7 +455,6 @@ navigator.serviceWorker.register('/sw.js');
             });
         }
 
-        // ========== CHAT & REACTIONS ==========
         function sendMessage() {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
@@ -444,13 +467,32 @@ navigator.serviceWorker.register('/sw.js');
             input.focus();
         }
 
-        function sendReaction(emoji) {
+        function sendReaction(emoji) { 
             if (socket && socket.connected) {
                 socket.emit('reaction', state.roomId, emoji);
             }
         }
 
-        // ========== SOCKET LISTENERS ==========
+        function showFloatingEmoji(emoji) {
+            const div = document.createElement('div');
+            div.innerText = emoji;
+            div.style.position = 'fixed';
+            div.style.bottom = '20%';
+            div.style.left = '50%';
+            div.style.transform = 'translateX(-50%)';
+            div.style.fontSize = '3rem';
+            div.style.zIndex = '9999';
+            div.style.opacity = '1';
+            div.style.transition = 'all 0.5s ease-out';
+            div.style.pointerEvents = 'none';
+            document.body.appendChild(div);
+            setTimeout(() => {
+                div.style.opacity = '0';
+                div.style.transform = 'translateX(-50%) translateY(-50px)';
+                setTimeout(() => div.remove(), 500);
+            }, 100);
+        }
+
         function setupSocketListeners() {
             socket.off('receive-chat');
             socket.off('video-sync');
@@ -478,7 +520,9 @@ navigator.serviceWorker.register('/sw.js');
                 box.scrollTop = box.scrollHeight;
             });
 
-            socket.on('receive-reaction', (emoji) => {});
+            socket.on('receive-reaction', (emoji) => {
+                showFloatingEmoji(emoji);
+            });
 
             socket.on('video-sync', (data) => {
                 if (!data) return;
@@ -551,8 +595,8 @@ navigator.serviceWorker.register('/sw.js');
             });
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            if (state.token && state.username) showLobbyView();
+        window.addEventListener('DOMContentLoaded', () => { 
+            if (state.token && state.username) showLobbyView(); 
         });
 
         window.addEventListener('click', () => {
@@ -566,4 +610,4 @@ navigator.serviceWorker.register('/sw.js');
         </p>
     </footer>
 </body>
-</html>
+                        </html>
