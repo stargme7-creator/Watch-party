@@ -166,6 +166,7 @@ navigator.serviceWorker.register('/sw.js');
             ]
         };
 
+        // ========== AUTH FUNCTIONS (intact) ==========
         function toggleAuthForm(mode) {
             const loginF = document.getElementById('login-form');
             const regF = document.getElementById('register-form');
@@ -243,12 +244,11 @@ navigator.serviceWorker.register('/sw.js');
             document.getElementById('register-form').classList.add('hidden');
         }
 
-        // ---------- FIXED: Room Entry (Proper Async handling) ----------
+        // ========== ROOM FUNCTIONS (FIXED) ==========
         async function enterPartyRoom(action) {
             if (action === 'create') {
                 const newRoomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
                 
-                // Ensure socket is connected before emitting create-room
                 if (!socket || !socket.connected) {
                     socket = io();
                     await new Promise((resolve) => {
@@ -256,16 +256,12 @@ navigator.serviceWorker.register('/sw.js');
                     });
                 }
                 
-                // Create room via server and wait for response
                 socket.emit('create-room', newRoomId, state.username, (response) => {
                     if (response && response.success) {
                         state.roomId = newRoomId;
                         proceedToRoom();
                     } else {
                         alert("Room creation failed: " + (response?.message || "Unknown error"));
-                        // Fallback: try direct join (for backward compatibility)
-                        state.roomId = newRoomId;
-                        proceedToRoom();
                     }
                 });
                 
@@ -273,7 +269,6 @@ navigator.serviceWorker.register('/sw.js');
                 const rInput = document.getElementById('join-room-id').value.trim().toUpperCase();
                 if (!rInput) return alert("Please enter a Room ID!");
                 
-                // Ensure socket is connected
                 if (!socket || !socket.connected) {
                     socket = io();
                     await new Promise((resolve) => {
@@ -293,7 +288,6 @@ navigator.serviceWorker.register('/sw.js');
         }
 
         function proceedToRoom() {
-            // Clean up old socket before creating new one
             if (socket) {
                 socket.disconnect();
             }
@@ -303,11 +297,9 @@ navigator.serviceWorker.register('/sw.js');
             document.body.className = "p-4";
             document.getElementById('room-display-id').innerText = state.roomId;
             
-            // Create new socket connection
             socket = io();
             
             socket.on('connect', () => {
-                console.log("Socket connected, joining room:", state.roomId);
                 socket.emit('join-room', { roomId: state.roomId, username: state.username });
                 setupSocketListeners();
             });
@@ -334,6 +326,7 @@ navigator.serviceWorker.register('/sw.js');
             showLobbyView();
         }
 
+        // ========== MIC & WEBRTC ==========
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
             if (!state.micActive) {
@@ -384,6 +377,7 @@ navigator.serviceWorker.register('/sw.js');
             return pc;
         }
 
+        // ========== VIDEO FUNCTIONS ==========
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
@@ -420,7 +414,7 @@ navigator.serviceWorker.register('/sw.js');
                 });
             } else if (meta.type === 'dailymotion') {
                 activePlayerType = 'dailymotion';
-                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>;
+                container.innerHTML = `<iframe id="dm-iframe" src="https://www.dailymotion.com/embed/video/${meta.id}?autoplay=1" allowfullscreen allow="autoplay" class="w-full h-full"></iframe>`;
             } else if (meta.type === 'raw') {
                 activePlayerType = 'raw';
                 container.innerHTML = `<video id="raw-video-element" controls autoplay class="w-full h-full"><source src="${meta.id}" type="video/mp4"></video>`;
@@ -455,6 +449,7 @@ navigator.serviceWorker.register('/sw.js');
             });
         }
 
+        // ========== CHAT & REACTIONS ==========
         function sendMessage() {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
@@ -493,6 +488,7 @@ navigator.serviceWorker.register('/sw.js');
             }, 100);
         }
 
+        // ========== SOCKET LISTENERS ==========
         function setupSocketListeners() {
             socket.off('receive-chat');
             socket.off('video-sync');
@@ -610,4 +606,4 @@ navigator.serviceWorker.register('/sw.js');
         </p>
     </footer>
 </body>
-                        </html>
+</html>
