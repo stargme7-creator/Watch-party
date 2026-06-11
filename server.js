@@ -5,6 +5,7 @@ const io = require('socket.io')(http);
 const path = require('path');
 const { Pool } = require('pg');
 const { Resend } = require('resend');
+const axios = require('axios'); // ← Anime API calls ke liye (npm install axios)
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -106,6 +107,47 @@ app.get('/verify', async (req, res) => {
         await pool.query('UPDATE users SET is_verified = TRUE WHERE email = $1', [email]);
         res.send("<h1>Verified!</h1><p>Aapka account verify ho gaya hai. Ab aap login kar sakte hain.</p>");
     } catch (err) { res.status(500).send("Verification Failed."); }
+});
+
+// ========== ANIME SEARCH APIs (ADDED - rest unchanged) ==========
+app.get('/api/anime/search', async (req, res) => {
+    const { query } = req.query;
+    if (!query) return res.json({ success: false, message: 'Query required' });
+    try {
+        const response = await axios.get(`https://api.consumet.org/anime/gogoanime/${encodeURIComponent(query)}`);
+        res.json({ success: true, results: response.data.results || [] });
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false, message: 'Search failed' });
+    }
+});
+
+app.get('/api/anime/episodes', async (req, res) => {
+    const { id } = req.query;
+    if (!id) return res.json({ success: false, message: 'ID required' });
+    try {
+        const response = await axios.get(`https://api.consumet.org/anime/gogoanime/info/${encodeURIComponent(id)}`);
+        const episodes = response.data.episodes || [];
+        res.json({ success: true, episodes });
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false, message: 'Failed to fetch episodes' });
+    }
+});
+
+app.get('/api/anime/stream', async (req, res) => {
+    const { episodeId } = req.query;
+    if (!episodeId) return res.json({ success: false, message: 'Episode ID required' });
+    try {
+        const response = await axios.get(`https://api.consumet.org/anime/gogoanime/watch/${encodeURIComponent(episodeId)}`);
+        const sources = response.data.sources || [];
+        let bestSource = sources.find(s => s.quality === '1080p') || sources[0];
+        if (!bestSource) return res.json({ success: false, message: 'No video source found' });
+        res.json({ success: true, url: bestSource.url });
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false, message: 'Failed to get stream link' });
+    }
 });
 
 // ---------- ROOM MANAGEMENT (SECURITY FIX) ----------
