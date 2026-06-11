@@ -9,7 +9,7 @@ navigator.serviceWorker.register('/sw.js');
     <link rel="manifest" href="/manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WatchParty - Multi Stream & Sync</title>
+    <title>WatchParty - Multi Stream & Sync + Anime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/socket.io/socket.io.js"></script>
@@ -21,6 +21,13 @@ navigator.serviceWorker.register('/sw.js');
         .msg-item { margin-bottom: 6px; padding: 4px 8px; border-bottom: 1px solid #1f2335; }
         .msg-user { color: #ff007f; font-weight: bold; }
         iframe, video { width: 100%; height: 100%; border-radius: 8px; border: none; }
+        /* Anime search extra styles */
+        .search-results { max-height: 300px; overflow-y: auto; background: #1f2335; border-radius: 8px; margin-top: 8px; }
+        .result-item { padding: 8px; border-bottom: 1px solid #2a2e45; cursor: pointer; }
+        .result-item:hover { background: #2a2e45; }
+        .episode-list { max-height: 200px; overflow-y: auto; background: #1f2335; border-radius: 8px; margin-top: 8px; }
+        .episode-item { padding: 6px 12px; border-bottom: 1px solid #2a2e45; cursor: pointer; font-size: 0.9rem; }
+        .episode-item:hover { background: #2a2e45; }
     </style>
 </head>
 <body class="p-4 flex flex-col min-h-screen justify-center items-center">
@@ -94,6 +101,16 @@ navigator.serviceWorker.register('/sw.js');
             </button>
         </div>
 
+        <!-- ANIME SEARCH SECTION (ADDED) -->
+        <div class="panel-bg p-3 rounded-lg">
+            <div class="flex gap-2">
+                <input type="text" id="anime-search-input" placeholder="Anime search (e.g., Spy x Family)" class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white">
+                <button onclick="searchAnime()" class="bg-green-600 hover:bg-green-700 px-4 rounded text-white"><i class="fa-solid fa-search"></i> Search</button>
+            </div>
+            <div id="search-results" class="search-results hidden"></div>
+            <div id="episodes-list" class="episode-list hidden"></div>
+        </div>
+
         <div class="flex gap-2">
             <input type="text" id="video-url-input" placeholder="YouTube, Dailymotion ya MP4 Video Link paste karo..." class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500">
             <button onclick="playNewVideoFromInput()" class="bg-red-600 hover:bg-red-700 px-5 rounded text-white flex items-center justify-center transition">
@@ -105,8 +122,8 @@ navigator.serviceWorker.register('/sw.js');
             <div id="player-container" class="w-full h-full">
                 <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
                     <i class="fa-solid fa-film text-4xl mb-2"></i>
-                    <p class="font-semibold text-sm text-gray-300">YouTube, Dailymotion ya Video Link Share Karo</p>
-                    <p class="text-xs text-gray-500 mt-1">Koi bhi online stream URL lekar upar play karo</p>
+                    <p class="font-semibold text-sm text-gray-300">YouTube, Dailymotion, MP4 ya Anime Search se video lao</p>
+                    <p class="text-xs text-gray-500 mt-1">Anime search karo, episode select karo, phir sab screen pe sync hoga</p>
                 </div>
             </div>
         </div>
@@ -244,18 +261,14 @@ navigator.serviceWorker.register('/sw.js');
             document.getElementById('register-form').classList.add('hidden');
         }
 
-        // ========== ROOM FUNCTIONS (FIXED) ==========
+        // ========== ROOM FUNCTIONS (unchanged) ==========
         async function enterPartyRoom(action) {
             if (action === 'create') {
                 const newRoomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
-                
                 if (!socket || !socket.connected) {
                     socket = io();
-                    await new Promise((resolve) => {
-                        socket.on('connect', resolve);
-                    });
+                    await new Promise((resolve) => { socket.on('connect', resolve); });
                 }
-                
                 socket.emit('create-room', newRoomId, state.username, (response) => {
                     if (response && response.success) {
                         state.roomId = newRoomId;
@@ -264,18 +277,13 @@ navigator.serviceWorker.register('/sw.js');
                         alert("Room creation failed: " + (response?.message || "Unknown error"));
                     }
                 });
-                
             } else if (action === 'join') {
                 const rInput = document.getElementById('join-room-id').value.trim().toUpperCase();
                 if (!rInput) return alert("Please enter a Room ID!");
-                
                 if (!socket || !socket.connected) {
                     socket = io();
-                    await new Promise((resolve) => {
-                        socket.on('connect', resolve);
-                    });
+                    await new Promise((resolve) => { socket.on('connect', resolve); });
                 }
-                
                 socket.emit('check-room', rInput, (response) => {
                     if (response && response.exists) {
                         state.roomId = rInput;
@@ -288,26 +296,17 @@ navigator.serviceWorker.register('/sw.js');
         }
 
         function proceedToRoom() {
-            if (socket) {
-                socket.disconnect();
-            }
-            
+            if (socket) { socket.disconnect(); }
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('party-room-screen').classList.remove('hidden');
             document.body.className = "p-4";
             document.getElementById('room-display-id').innerText = state.roomId;
-            
             socket = io();
-            
             socket.on('connect', () => {
                 socket.emit('join-room', { roomId: state.roomId, username: state.username });
                 setupSocketListeners();
             });
-            
-            socket.on('connect_error', (err) => {
-                console.error("Socket connection error:", err);
-                alert("Connection error. Please refresh and try again.");
-            });
+            socket.on('connect_error', (err) => { console.error(err); alert("Connection error."); });
         }
 
         function leavePartyRoom() {
@@ -377,7 +376,7 @@ navigator.serviceWorker.register('/sw.js');
             return pc;
         }
 
-        // ========== VIDEO FUNCTIONS ==========
+        // ========== VIDEO FUNCTIONS (unchanged) ==========
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
@@ -449,23 +448,91 @@ navigator.serviceWorker.register('/sw.js');
             });
         }
 
-        // ========== CHAT & REACTIONS ==========
+        // ========== ANIME SEARCH FUNCTIONS (ADDED) ==========
+        async function searchAnime() {
+            const query = document.getElementById('anime-search-input').value.trim();
+            if (!query) return alert("Enter anime name to search");
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.innerHTML = '<div class="p-2 text-gray-400">Searching...</div>';
+            resultsDiv.classList.remove('hidden');
+            document.getElementById('episodes-list').classList.add('hidden');
+            try {
+                const res = await fetch(`/api/anime/search?query=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                if (!data.success || !data.results.length) {
+                    resultsDiv.innerHTML = '<div class="p-2 text-gray-400">No results found</div>';
+                    return;
+                }
+                resultsDiv.innerHTML = '';
+                data.results.forEach(anime => {
+                    const div = document.createElement('div');
+                    div.className = 'result-item';
+                    div.innerHTML = `<strong>${anime.title}</strong><br><small class="text-gray-400">${anime.subOrDub || ''}</small>`;
+                    div.onclick = () => fetchEpisodes(anime.id);
+                    resultsDiv.appendChild(div);
+                });
+            } catch (err) {
+                console.error(err);
+                resultsDiv.innerHTML = '<div class="p-2 text-red-400">Search failed</div>';
+            }
+        }
+
+        async function fetchEpisodes(animeId) {
+            const episodesDiv = document.getElementById('episodes-list');
+            episodesDiv.innerHTML = '<div class="p-2 text-gray-400">Loading episodes...</div>';
+            episodesDiv.classList.remove('hidden');
+            try {
+                const res = await fetch(`/api/anime/episodes?id=${encodeURIComponent(animeId)}`);
+                const data = await res.json();
+                if (!data.success || !data.episodes.length) {
+                    episodesDiv.innerHTML = '<div class="p-2 text-gray-400">No episodes found</div>';
+                    return;
+                }
+                episodesDiv.innerHTML = '';
+                data.episodes.forEach(ep => {
+                    const div = document.createElement('div');
+                    div.className = 'episode-item';
+                    div.innerText = `${ep.number}. ${ep.title || 'Episode ' + ep.number}`;
+                    div.onclick = () => playAnimeEpisode(ep.id);
+                    episodesDiv.appendChild(div);
+                });
+            } catch (err) {
+                console.error(err);
+                episodesDiv.innerHTML = '<div class="p-2 text-red-400">Failed to load episodes</div>';
+            }
+        }
+
+        async function playAnimeEpisode(episodeId) {
+            try {
+                const res = await fetch(`/api/anime/stream?episodeId=${encodeURIComponent(episodeId)}`);
+                const data = await res.json();
+                if (!data.success || !data.url) {
+                    alert("Could not get video link. Try another episode.");
+                    return;
+                }
+                const mediaMeta = { type: 'raw', id: data.url };
+                socket.emit('video-sync', state.roomId, { action: 'loadNewVideo', meta: mediaMeta });
+                renderActivePlayer(mediaMeta);
+                document.getElementById('search-results').classList.add('hidden');
+                document.getElementById('episodes-list').classList.add('hidden');
+            } catch (err) {
+                console.error(err);
+                alert("Error playing episode");
+            }
+        }
+
+        // ========== CHAT & REACTIONS (unchanged) ==========
         function sendMessage() {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
-            if (!socket || !socket.connected) {
-                alert("Connection lost. Please refresh.");
-                return;
-            }
+            if (!socket || !socket.connected) { alert("Connection lost."); return; }
             socket.emit('chat-message', state.roomId, state.username, input.value.trim());
             input.value = '';
             input.focus();
         }
 
-        function sendReaction(emoji) { 
-            if (socket && socket.connected) {
-                socket.emit('reaction', state.roomId, emoji);
-            }
+        function sendReaction(emoji) {
+            if (socket && socket.connected) socket.emit('reaction', state.roomId, emoji);
         }
 
         function showFloatingEmoji(emoji) {
@@ -488,7 +555,7 @@ navigator.serviceWorker.register('/sw.js');
             }, 100);
         }
 
-        // ========== SOCKET LISTENERS ==========
+        // ========== SOCKET LISTENERS (unchanged) ==========
         function setupSocketListeners() {
             socket.off('receive-chat');
             socket.off('video-sync');
@@ -501,11 +568,7 @@ navigator.serviceWorker.register('/sw.js');
             socket.off('receive-reaction');
             socket.off('room-error');
 
-            socket.on('room-error', (data) => {
-                alert(data.message);
-                leavePartyRoom();
-            });
-
+            socket.on('room-error', (data) => { alert(data.message); leavePartyRoom(); });
             socket.on('receive-chat', ({ user, msg }) => {
                 const box = document.getElementById('messages');
                 if (!box) return;
@@ -515,11 +578,7 @@ navigator.serviceWorker.register('/sw.js');
                 box.appendChild(item);
                 box.scrollTop = box.scrollHeight;
             });
-
-            socket.on('receive-reaction', (emoji) => {
-                showFloatingEmoji(emoji);
-            });
-
+            socket.on('receive-reaction', (emoji) => showFloatingEmoji(emoji));
             socket.on('video-sync', (data) => {
                 if (!data) return;
                 if (data.action === 'loadNewVideo' && data.meta) {
@@ -529,22 +588,21 @@ navigator.serviceWorker.register('/sw.js');
                 if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
                     ignoreSyncEvents = true;
                     const localTime = ytPlayer.getCurrentTime();
-                    if (Math.abs(localTime - data.time) > 1.5) { ytPlayer.seekTo(data.time, true); }
-                    if (data.action === 'play') { ytPlayer.playVideo(); }
-                    else if (data.action === 'pause') { ytPlayer.pauseVideo(); }
+                    if (Math.abs(localTime - data.time) > 1.5) ytPlayer.seekTo(data.time, true);
+                    if (data.action === 'play') ytPlayer.playVideo();
+                    else if (data.action === 'pause') ytPlayer.pauseVideo();
                     setTimeout(() => { ignoreSyncEvents = false; }, 400);
                 } else if (activePlayerType === 'raw') {
                     const videoEl = document.getElementById('raw-video-element');
                     if (videoEl) {
                         ignoreSyncEvents = true;
-                        if (Math.abs(videoEl.currentTime - data.time) > 1.5) { videoEl.currentTime = data.time; }
-                        if (data.action === 'play') { videoEl.play(); }
-                        else if (data.action === 'pause') { videoEl.pause(); }
+                        if (Math.abs(videoEl.currentTime - data.time) > 1.5) videoEl.currentTime = data.time;
+                        if (data.action === 'play') videoEl.play();
+                        else if (data.action === 'pause') videoEl.pause();
                         setTimeout(() => { ignoreSyncEvents = false; }, 400);
                     }
                 }
             });
-
             socket.on('new-peer', (targetUserId) => { initPeerConnection(targetUserId, true); });
             socket.on('webrtc-offer', (fromId, offer) => {
                 const pc = initPeerConnection(fromId, false);
@@ -559,7 +617,6 @@ navigator.serviceWorker.register('/sw.js');
                 const audioEl = document.getElementById(`audio-${targetUserId}`);
                 if (audioEl) audioEl.remove();
             });
-
             socket.on('room-users-update', (data) => {
                 const list = document.getElementById('user-list');
                 if (!list) return;
@@ -569,14 +626,13 @@ navigator.serviceWorker.register('/sw.js');
                     return;
                 }
                 data.users.forEach(user => {
-                    list.innerHTML += `
-                        <div class="flex items-center justify-between p-1 rounded hover:bg-gray-800/40 transition">
-                            <div class="flex items-center gap-2">
-                                <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
-                                <span class="text-sm font-medium text-gray-200">${escapeHtml(user)}</span>
-                            </div>
-                            <span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full font-mono uppercase tracking-wider">Online</span>
-                        </div>`;
+                    list.innerHTML += `<div class="flex items-center justify-between p-1 rounded hover:bg-gray-800/40 transition">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
+                            <span class="text-sm font-medium text-gray-200">${escapeHtml(user)}</span>
+                        </div>
+                        <span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full font-mono uppercase tracking-wider">Online</span>
+                    </div>`;
                 });
             });
         }
@@ -591,19 +647,15 @@ navigator.serviceWorker.register('/sw.js');
             });
         }
 
-        window.addEventListener('DOMContentLoaded', () => { 
-            if (state.token && state.username) showLobbyView(); 
+        window.addEventListener('DOMContentLoaded', () => {
+            if (state.token && state.username) showLobbyView();
         });
-
         window.addEventListener('click', () => {
-            const audios = document.querySelectorAll('audio');
-            audios.forEach(audio => { if (audio.paused) audio.play(); });
+            document.querySelectorAll('audio').forEach(audio => { if (audio.paused) audio.play(); });
         }, { once: true });
     </script>
     <footer>
-        <p>&copy; 2026 Watch Party App.
-            <a href="https://www.termsfeed.com/live/bfae1679-234e-4d2b-bbd4-21438b92aa79" target="_blank">Privacy Policy</a>
-        </p>
+        <p>&copy; 2026 Watch Party App. <a href="https://www.termsfeed.com/live/bfae1679-234e-4d2b-bbd4-21438b92aa79" target="_blank">Privacy Policy</a></p>
     </footer>
 </body>
-</html>
+                    </html>
