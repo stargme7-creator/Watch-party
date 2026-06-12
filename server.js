@@ -5,7 +5,7 @@ const io = require('socket.io')(http);
 const path = require('path');
 const { Pool } = require('pg');
 const { Resend } = require('resend');
-const axios = require('axios'); // ← SIRF YEH EK LINE ADD KARNI HAI
+const axios = require('axios');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -214,23 +214,22 @@ io.on('connection', (socket) => {
     });
 });
 
-// ========== ANIME SEARCH APIs (WORKING - FINAL) ==========
+// ========== ANIME SEARCH APIs (WORKING - GOGOANIME DIRECT) ==========
 app.get('/api/anime/search', async (req, res) => {
     const { query } = req.query;
     if (!query) return res.json({ success: false, results: [] });
     try {
-        const response = await axios.get(`https://api.consumet.org/meta/anilist/${encodeURIComponent(query)}`, { timeout: 15000 });
-        let results = response.data.results || [];
-        results = results.filter(r => r.episodes && r.episodes.length > 0);
+        const response = await axios.get(`https://gogoanime.herokuapp.com/search?keyw=${encodeURIComponent(query)}`);
+        const results = (response.data || []).map(anime => ({
+            id: anime.animeId,
+            title: anime.animeTitle,
+            image: anime.animeImg,
+            episodes: null
+        }));
         res.json({ success: true, results: results });
     } catch (err) {
         console.error("Search error:", err.message);
-        try {
-            const fallback = await axios.get(`https://api.consumet.org/anime/gogoanime/${encodeURIComponent(query)}`, { timeout: 10000 });
-            res.json({ success: true, results: fallback.data.results || [] });
-        } catch (e) {
-            res.json({ success: false, results: [] });
-        }
+        res.json({ success: false, results: [] });
     }
 });
 
@@ -238,12 +237,12 @@ app.get('/api/anime/episodes', async (req, res) => {
     const { id } = req.query;
     if (!id) return res.json({ success: false, episodes: [] });
     try {
-        const response = await axios.get(`https://api.consumet.org/meta/anilist/info/${encodeURIComponent(id)}`, { timeout: 15000 });
-        let episodes = response.data.episodes || [];
-        if (episodes.length === 0) {
-            const gogoRes = await axios.get(`https://api.consumet.org/anime/gogoanime/info/${encodeURIComponent(id)}`, { timeout: 10000 });
-            episodes = gogoRes.data.episodes || [];
-        }
+        const response = await axios.get(`https://gogoanime.herokuapp.com/anime-details/${encodeURIComponent(id)}`);
+        const episodes = (response.data.episodesList || []).map(ep => ({
+            id: ep.episodeId,
+            number: ep.episodeId.split('-episode-').pop() || '1',
+            title: `Episode ${ep.episodeId.split('-episode-').pop()}`
+        }));
         res.json({ success: true, episodes: episodes });
     } catch (err) {
         console.error("Episode error:", err.message);
@@ -255,7 +254,7 @@ app.get('/api/anime/stream', async (req, res) => {
     const { episodeId } = req.query;
     if (!episodeId) return res.json({ success: false });
     try {
-        const response = await axios.get(`https://api.consumet.org/anime/gogoanime/watch/${encodeURIComponent(episodeId)}`, { timeout: 15000 });
+        const response = await axios.get(`https://gogoanime.herokuapp.com/vidcdn/watch/${encodeURIComponent(episodeId)}`);
         const sources = response.data.sources || [];
         const bestSource = sources.find(s => s.quality === '1080p') || sources.find(s => s.quality === '720p') || sources[0];
         if (!bestSource) return res.json({ success: false });
