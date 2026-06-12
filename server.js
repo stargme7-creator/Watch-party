@@ -6,9 +6,6 @@ const path = require('path');
 const { Pool } = require('pg');
 const { Resend } = require('resend');
 const axios = require('axios');
-// ✅ New package for anime
-const { ANIME } = require('@dovakiin0/aniwatch');
-const aniwatch = new ANIME.HiAnime();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -217,16 +214,18 @@ io.on('connection', (socket) => {
     });
 });
 
-// ========== ANIME SEARCH APIs (UPDATED - WORKING WITH @dovakiin0/aniwatch) ==========
+// ========== ANIME SEARCH APIs (WORKING - HiAnime, Hindi Dubbed Support) ==========
+const ANIME_API_BASE = 'https://hianime-api-iy4s.onrender.com/api'; // Public instance
+
 app.get('/api/anime/search', async (req, res) => {
     const { query } = req.query;
     if (!query) return res.json({ success: false, results: [] });
     try {
-        const data = await aniwatch.search(query);
-        const results = (data.animes || []).map(anime => ({
+        const response = await axios.get(`${ANIME_API_BASE}/search?keyword=${encodeURIComponent(query)}`);
+        const results = (response.data.animes || []).map(anime => ({
             id: anime.id,
             title: anime.name,
-            image: anime.img
+            image: anime.poster
         }));
         res.json({ success: true, results: results });
     } catch (err) {
@@ -239,11 +238,11 @@ app.get('/api/anime/episodes', async (req, res) => {
     const { id } = req.query;
     if (!id) return res.json({ success: false, episodes: [] });
     try {
-        const data = await aniwatch.getInfo(id);
-        const episodes = (data.episodes || []).map((ep, idx) => ({
-            id: ep.episodeId || `${id}-ep-${idx}`,
-            number: idx + 1,
-            title: ep.title || `Episode ${idx + 1}`
+        const response = await axios.get(`${ANIME_API_BASE}/episodes/${id}`);
+        const episodes = (response.data.episodes || []).map((ep, idx) => ({
+            id: `${id}/${idx+1}`,
+            number: idx+1,
+            title: ep.title || `Episode ${idx+1}`
         }));
         res.json({ success: true, episodes: episodes });
     } catch (err) {
@@ -255,12 +254,18 @@ app.get('/api/anime/episodes', async (req, res) => {
 app.get('/api/anime/stream', async (req, res) => {
     const { episodeId } = req.query;
     if (!episodeId) return res.json({ success: false });
+    const [animeId, epNum] = episodeId.split('/');
     try {
-        const data = await aniwatch.getEpisodeSources(episodeId);
-        const sources = data.sources || [];
-        const bestSource = sources.find(s => s.quality === '1080p') || sources[0];
-        if (!bestSource) return res.json({ success: false });
-        res.json({ success: true, url: bestSource.url });
+        // Get available servers
+        const serversRes = await axios.get(`${ANIME_API_BASE}/servers?id=${animeId}/${epNum}`);
+        if (!serversRes.data.servers || serversRes.data.servers.length === 0) {
+            return res.json({ success: false });
+        }
+        const serverName = serversRes.data.servers[0].serverName;
+        // Get stream link (prefer dubbed if available)
+        const streamRes = await axios.get(`${ANIME_API_BASE}/stream?id=${animeId}/${epNum}&type=dub&server=${serverName}`);
+        if (!streamRes.data.link) return res.json({ success: false });
+        res.json({ success: true, url: streamRes.data.link });
     } catch (err) {
         console.error("Stream error:", err.message);
         res.json({ success: false });
