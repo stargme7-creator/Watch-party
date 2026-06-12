@@ -5,7 +5,7 @@ const io = require('socket.io')(http);
 const path = require('path');
 const { Pool } = require('pg');
 const { Resend } = require('resend');
-const axios = require('axios'); // ← Anime API calls ke liye (npm install axios)
+const axios = require('axios'); // ← SIRF YEH EK LINE ADD KARNI HAI
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -109,61 +109,18 @@ app.get('/verify', async (req, res) => {
     } catch (err) { res.status(500).send("Verification Failed."); }
 });
 
-// ========== ANIME SEARCH APIs (ADDED - rest unchanged) ==========
-app.get('/api/anime/search', async (req, res) => {
-    const { query } = req.query;
-    if (!query) return res.json({ success: false, message: 'Query required' });
-    try {
-        const response = await axios.get(`https://api.consumet.org/anime/gogoanime/${encodeURIComponent(query)}`);
-        res.json({ success: true, results: response.data.results || [] });
-    } catch (err) {
-        console.error(err);
-        res.json({ success: false, message: 'Search failed' });
-    }
-});
-
-app.get('/api/anime/episodes', async (req, res) => {
-    const { id } = req.query;
-    if (!id) return res.json({ success: false, message: 'ID required' });
-    try {
-        const response = await axios.get(`https://api.consumet.org/anime/gogoanime/info/${encodeURIComponent(id)}`);
-        const episodes = response.data.episodes || [];
-        res.json({ success: true, episodes });
-    } catch (err) {
-        console.error(err);
-        res.json({ success: false, message: 'Failed to fetch episodes' });
-    }
-});
-
-app.get('/api/anime/stream', async (req, res) => {
-    const { episodeId } = req.query;
-    if (!episodeId) return res.json({ success: false, message: 'Episode ID required' });
-    try {
-        const response = await axios.get(`https://api.consumet.org/anime/gogoanime/watch/${encodeURIComponent(episodeId)}`);
-        const sources = response.data.sources || [];
-        let bestSource = sources.find(s => s.quality === '1080p') || sources[0];
-        if (!bestSource) return res.json({ success: false, message: 'No video source found' });
-        res.json({ success: true, url: bestSource.url });
-    } catch (err) {
-        console.error(err);
-        res.json({ success: false, message: 'Failed to get stream link' });
-    }
-});
-
 // ---------- ROOM MANAGEMENT (SECURITY FIX) ----------
 const activeRooms = {};
-const createdRooms = new Set(); // Track rooms created via "Create Room"
+const createdRooms = new Set();
 
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // Check if room exists
     socket.on('check-room', (roomId, callback) => {
         const exists = createdRooms.has(roomId);
         callback({ exists });
     });
 
-    // Create room (only via this event)
     socket.on('create-room', (roomId, username, callback) => {
         if (!createdRooms.has(roomId)) {
             createdRooms.add(roomId);
@@ -175,31 +132,23 @@ io.on('connection', (socket) => {
     });
 
     socket.on('join-room', ({ roomId, username }) => {
-        // Security: only allow joining if room exists in createdRooms
         if (!createdRooms.has(roomId)) {
             socket.emit('room-error', { message: 'Room does not exist. Please create a new room first.' });
             return;
         }
-
         if (!activeRooms[roomId]) {
             activeRooms[roomId] = { users: [], currentVideo: null };
         }
-
         activeRooms[roomId].users = activeRooms[roomId].users.filter(u => u.username !== username);
         const userObj = { id: socket.id, username: username };
         activeRooms[roomId].users.push(userObj);
-
         socket.join(roomId);
         socket.roomId = roomId;
         socket.username = username;
-
         console.log(`${username} joined room: ${roomId}`);
-
         socket.to(roomId).emit('new-peer', socket.id);
-
         const usersList = activeRooms[roomId].users.map(u => u.username);
         io.to(roomId).emit('room-users-update', { users: usersList });
-
         if (activeRooms[roomId].currentVideo) {
             socket.emit('video-sync', activeRooms[roomId].currentVideo);
         }
@@ -263,6 +212,59 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         handleUserLeave(socket);
     });
+});
+
+// ========== ANIME SEARCH APIs (ADDED - REST UNCHANGED) ==========
+app.get('/api/anime/search', async (req, res) => {
+    const { query } = req.query;
+    if (!query) return res.json({ success: false, message: 'Query required', results: [] });
+    try {
+        const response = await axios.get(`https://api.consumet.org/meta/anilist/${encodeURIComponent(query)}`, { timeout: 15000 });
+        let results = response.data.results || [];
+        results = results.filter(r => r.episodes && r.episodes.length > 0);
+        res.json({ success: true, results: results });
+    } catch (err) {
+        console.error("Anime search error:", err.message);
+        try {
+            const fallbackRes = await axios.get(`https://api.consumet.org/anime/gogoanime/${encodeURIComponent(query)}`, { timeout: 10000 });
+            res.json({ success: true, results: fallbackRes.data.results || [] });
+        } catch (e) {
+            res.json({ success: false, message: 'Search failed', results: [] });
+        }
+    }
+});
+
+app.get('/api/anime/episodes', async (req, res) => {
+    const { id } = req.query;
+    if (!id) return res.json({ success: false, message: 'ID required', episodes: [] });
+    try {
+        const response = await axios.get(`https://api.consumet.org/meta/anilist/info/${encodeURIComponent(id)}`, { timeout: 15000 });
+        let episodes = response.data.episodes || [];
+        res.json({ success: true, episodes: episodes });
+    } catch (err) {
+        console.error("Episode fetch error:", err.message);
+        try {
+            const fallbackRes = await axios.get(`https://api.consumet.org/anime/gogoanime/info/${encodeURIComponent(id)}`, { timeout: 10000 });
+            res.json({ success: true, episodes: fallbackRes.data.episodes || [] });
+        } catch (e) {
+            res.json({ success: false, message: 'Failed to fetch episodes', episodes: [] });
+        }
+    }
+});
+
+app.get('/api/anime/stream', async (req, res) => {
+    const { episodeId } = req.query;
+    if (!episodeId) return res.json({ success: false, message: 'Episode ID required' });
+    try {
+        const response = await axios.get(`https://api.consumet.org/anime/gogoanime/watch/${encodeURIComponent(episodeId)}`, { timeout: 15000 });
+        const sources = response.data.sources || [];
+        let bestSource = sources.find(s => s.quality === '1080p') || sources.find(s => s.quality === '720p') || sources[0];
+        if (!bestSource) return res.json({ success: false, message: 'No video source found' });
+        res.json({ success: true, url: bestSource.url });
+    } catch (err) {
+        console.error("Stream fetch error:", err.message);
+        res.json({ success: false, message: 'Failed to get stream link' });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
