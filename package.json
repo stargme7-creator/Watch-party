@@ -1,17 +1,16 @@
 {
-  "name": "watchparty",
-  "version": "1.0.0",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.5.4",
-    "pg": "^8.10.0",
-    "@dovakiin0/aniwatch": "2.24.6-custom-1"
-    "resend": "^3.0.0",
-    "axios": "^1.6.0",
-    "@dovakiin0/aniwatch": "^1.0.0"
-  }
+    "name": "watchparty",
+    "version": "1.0.0",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "express": "^4.18.2",
+        "socket.io": "^4.5.4",
+        "pg": "^8.10.0",
+        "resend": "^3.0.0",
+        "axios": "^1.6.0",
+        "@dovakiin0/aniwatch": "2.24.6-custom-1"
+    }
 }
