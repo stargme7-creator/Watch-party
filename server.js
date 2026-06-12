@@ -214,102 +214,63 @@ io.on('connection', (socket) => {
     });
 });
 
-// ========== ANIME SEARCH APIs (MULTI-API FALLBACK - 99.9% WORKING) ==========
-
-// Try multiple APIs until one works
-async function fetchWithFallback(apis, query, type = 'search') {
+// ========== Helper: Fetch from multiple APIs ==========
+async function fetchFromMultipleAPIs(apis, encodedQuery) {
     for (const api of apis) {
         try {
-            let response;
-            if (type === 'search') {
-                response = await axios.get(`${api.url}${encodeURIComponent(query)}`, { timeout: 8000 });
-                if (response.data && (response.data.results || response.data.animes || response.data.data)) {
-                    return { success: true, data: response.data, source: api.name };
-                }
-            } else if (type === 'episodes') {
-                response = await axios.get(`${api.url}${encodeURIComponent(query)}`, { timeout: 8000 });
-                if (response.data && (response.data.episodes || response.data.data?.episodes)) {
-                    return { success: true, data: response.data, source: api.name };
-                }
+            const response = await axios.get(`${api.url}${encodedQuery}`, { timeout: 8000 });
+            // Check if response has data
+            if (response.data && (response.data.results?.length > 0 || response.data.length > 0)) {
+                return { success: true, data: response.data, source: api.name };
             }
         } catch (err) {
-            console.log(`${api.name} failed:`, err.message);
+            console.log(`${api.name} failed: ${err.message}`);
         }
     }
     return { success: false };
 }
 
-// Search API with fallback
+// ========== ANIME SEARCH APIs (with normalization) ==========
 app.get('/api/anime/search', async (req, res) => {
     const { query } = req.query;
     if (!query) return res.json({ success: false, results: [] });
-    
+
     const apis = [
-        { name: 'HiAnime', url: 'https://hianime-api-iy4s.onrender.com/api/search?keyword=' },
         { name: 'Anify', url: 'https://api.anify.tv/search/' },
-        { name: 'Consumet', url: 'https://api.consumet.org/anime/gogoanime/' }
+        { name: 'Anime-API', url: 'https://anime-api-v2.onrender.com/search?query=' }
     ];
+
+    const result = await fetchFromMultipleAPIs(apis, encodeURIComponent(query));
     
-    try {
-        // Try HiAnime first
-        let response = await axios.get(`https://hianime-api-iy4s.onrender.com/api/search?keyword=${encodeURIComponent(query)}`, { timeout: 8000 });
-        if (response.data && response.data.animes && response.data.animes.length > 0) {
-            const results = response.data.animes.map(anime => ({
-                id: anime.id,
-                title: anime.name,
-                image: anime.poster
+    if (result.success) {
+        let normalizedData = [];
+        if (result.source === 'Anify') {
+            normalizedData = (result.data || []).slice(0, 12).map(item => ({
+                id: item.id,
+                title: item.title?.english || item.title?.romaji || 'Unknown',
+                image: item.coverImage || null
             }));
-            return res.json({ success: true, results: results });
-        }
-        
-        // Fallback to Anify
-        response = await axios.get(`https://api.anify.tv/search/${encodeURIComponent(query)}?type=anime`, { timeout: 8000 });
-        if (response.data && response.data.length > 0) {
-            const results = response.data.slice(0, 12).map(anime => ({
-                id: anime.id,
-                title: anime.title?.english || anime.title?.romaji || 'Unknown',
-                image: anime.coverImage || null
+        } else if (result.source === 'Anime-API') {
+            normalizedData = (result.data.results || []).slice(0, 12).map(item => ({
+                id: item.id,
+                title: item.title,
+                image: item.image
             }));
-            return res.json({ success: true, results: results });
         }
-        
-        // Fallback to Consumet
-        response = await axios.get(`https://api.consumet.org/anime/gogoanime/${encodeURIComponent(query)}`, { timeout: 8000 });
-        if (response.data && response.data.results && response.data.results.length > 0) {
-            const results = response.data.results.slice(0, 12).map(anime => ({
-                id: anime.id,
-                title: anime.title,
-                image: anime.image
-            }));
-            return res.json({ success: true, results: results });
-        }
-        
-        res.json({ success: false, results: [] });
-    } catch (err) {
-        console.error("All search APIs failed:", err.message);
-        res.json({ success: false, results: [] });
+        res.json({ success: true, results: normalizedData });
+    } else {
+        res.json({ success: false, results: [], message: "All APIs failed" });
     }
 });
 
-// Episodes API with fallback
+// Episodes endpoint (using Anify as primary, fallback to Anime-API if needed)
 app.get('/api/anime/episodes', async (req, res) => {
     const { id } = req.query;
     if (!id) return res.json({ success: false, episodes: [] });
-    
+
     try {
-        // Try HiAnime first
-        let response = await axios.get(`https://hianime-api-iy4s.onrender.com/api/episodes/${encodeURIComponent(id)}`, { timeout: 8000 });
-        if (response.data && response.data.episodes && response.data.episodes.length > 0) {
-            const episodes = response.data.episodes.map((ep, idx) => ({
-                id: `${id}/${idx+1}`,
-                number: idx+1,
-                title: ep.title || `Episode ${idx+1}`
-            }));
-            return res.json({ success: true, episodes: episodes });
-        }
-        
-        // Fallback to Anify
-        response = await axios.get(`https://api.anify.tv/info/${encodeURIComponent(id)}?type=anime`, { timeout: 8000 });
+        // Try Anify first
+        let response = await axios.get(`https://api.anify.tv/info/${encodeURIComponent(id)}?type=anime`, { timeout: 8000 });
         if (response.data && response.data.episodes && response.data.episodes.length > 0) {
             const episodes = response.data.episodes.map(ep => ({
                 id: ep.id,
@@ -318,63 +279,39 @@ app.get('/api/anime/episodes', async (req, res) => {
             }));
             return res.json({ success: true, episodes: episodes });
         }
-        
-        // Fallback to Consumet
-        response = await axios.get(`https://api.consumet.org/anime/gogoanime/info/${encodeURIComponent(id)}`, { timeout: 8000 });
-        if (response.data && response.data.episodes && response.data.episodes.length > 0) {
-            const episodes = response.data.episodes.map((ep, idx) => ({
+        // Fallback to Anime-API
+        const animeApiRes = await axios.get(`https://anime-api-v2.onrender.com/episodes/${encodeURIComponent(id)}`, { timeout: 8000 });
+        if (animeApiRes.data && animeApiRes.data.episodes && animeApiRes.data.episodes.length > 0) {
+            const episodes = animeApiRes.data.episodes.map((ep, idx) => ({
                 id: ep.id,
                 number: idx+1,
                 title: ep.title || `Episode ${idx+1}`
             }));
             return res.json({ success: true, episodes: episodes });
         }
-        
         res.json({ success: false, episodes: [] });
     } catch (err) {
-        console.error("All episode APIs failed:", err.message);
+        console.error("Episode error:", err.message);
         res.json({ success: false, episodes: [] });
     }
 });
 
-// Stream API with fallback
+// Stream endpoint (using the same logic as before, but we'll reuse the episodeId format from Anify)
 app.get('/api/anime/stream', async (req, res) => {
     const { episodeId } = req.query;
     if (!episodeId) return res.json({ success: false });
-    
+
     try {
-        // Try HiAnime first
-        const [animeId, epNum] = episodeId.split('/');
-        const serversRes = await axios.get(`https://hianime-api-iy4s.onrender.com/api/servers?id=${animeId}/${epNum}`, { timeout: 8000 });
-        if (serversRes.data && serversRes.data.servers && serversRes.data.servers.length > 0) {
-            const serverName = serversRes.data.servers[0].serverName;
-            const streamRes = await axios.get(`https://hianime-api-iy4s.onrender.com/api/stream?id=${animeId}/${epNum}&type=dub&server=${serverName}`, { timeout: 8000 });
-            if (streamRes.data && streamRes.data.link) {
-                return res.json({ success: true, url: streamRes.data.link });
-            }
-        }
-        
-        // Fallback to Anify
+        // Try to get stream from Anify (if episodeId is from Anify)
         const anifyRes = await axios.get(`https://api.anify.tv/watch/${encodeURIComponent(episodeId)}`, { timeout: 8000 });
         if (anifyRes.data && anifyRes.data.sources && anifyRes.data.sources.length > 0) {
             const bestSource = anifyRes.data.sources.find(s => s.quality === '1080p') || anifyRes.data.sources[0];
-            if (bestSource && bestSource.url) {
-                return res.json({ success: true, url: bestSource.url });
-            }
+            if (bestSource && bestSource.url) return res.json({ success: true, url: bestSource.url });
         }
-        
-        // Fallback to Consumet
-        const consumetRes = await axios.get(`https://api.consumet.org/anime/gogoanime/watch/${encodeURIComponent(episodeId)}`, { timeout: 8000 });
-        if (consumetRes.data && consumetRes.data.sources && consumetRes.data.sources.length > 0) {
-            const bestSource = consumetRes.data.sources.find(s => s.quality === '1080p') || consumetRes.data.sources[0];
-            if (bestSource && bestSource.url) {
-                return res.json({ success: true, url: bestSource.url });
-            }
-        }
-        
+        // If episodeId is from Anime-API, its format may be different. You can extend here.
         res.json({ success: false });
     } catch (err) {
-        console.error("All stream APIs failed:", err.message);
+        console.error("Stream error:", err.message);
         res.json({ success: false });
     }
 });
