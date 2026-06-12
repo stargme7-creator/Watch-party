@@ -6,6 +6,9 @@ const path = require('path');
 const { Pool } = require('pg');
 const { Resend } = require('resend');
 const axios = require('axios');
+// ✅ New package for anime
+const { ANIME } = require('@dovakiin0/aniwatch');
+const aniwatch = new ANIME.HiAnime();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -214,17 +217,16 @@ io.on('connection', (socket) => {
     });
 });
 
-// ========== ANIME SEARCH APIs (WORKING - GOGOANIME DIRECT) ==========
+// ========== ANIME SEARCH APIs (UPDATED - WORKING WITH @dovakiin0/aniwatch) ==========
 app.get('/api/anime/search', async (req, res) => {
     const { query } = req.query;
     if (!query) return res.json({ success: false, results: [] });
     try {
-        const response = await axios.get(`https://gogoanime.herokuapp.com/search?keyw=${encodeURIComponent(query)}`);
-        const results = (response.data || []).map(anime => ({
-            id: anime.animeId,
-            title: anime.animeTitle,
-            image: anime.animeImg,
-            episodes: null
+        const data = await aniwatch.search(query);
+        const results = (data.animes || []).map(anime => ({
+            id: anime.id,
+            title: anime.name,
+            image: anime.img
         }));
         res.json({ success: true, results: results });
     } catch (err) {
@@ -237,11 +239,11 @@ app.get('/api/anime/episodes', async (req, res) => {
     const { id } = req.query;
     if (!id) return res.json({ success: false, episodes: [] });
     try {
-        const response = await axios.get(`https://gogoanime.herokuapp.com/anime-details/${encodeURIComponent(id)}`);
-        const episodes = (response.data.episodesList || []).map(ep => ({
-            id: ep.episodeId,
-            number: ep.episodeId.split('-episode-').pop() || '1',
-            title: `Episode ${ep.episodeId.split('-episode-').pop()}`
+        const data = await aniwatch.getInfo(id);
+        const episodes = (data.episodes || []).map((ep, idx) => ({
+            id: ep.episodeId || `${id}-ep-${idx}`,
+            number: idx + 1,
+            title: ep.title || `Episode ${idx + 1}`
         }));
         res.json({ success: true, episodes: episodes });
     } catch (err) {
@@ -254,9 +256,9 @@ app.get('/api/anime/stream', async (req, res) => {
     const { episodeId } = req.query;
     if (!episodeId) return res.json({ success: false });
     try {
-        const response = await axios.get(`https://gogoanime.herokuapp.com/vidcdn/watch/${encodeURIComponent(episodeId)}`);
-        const sources = response.data.sources || [];
-        const bestSource = sources.find(s => s.quality === '1080p') || sources.find(s => s.quality === '720p') || sources[0];
+        const data = await aniwatch.getEpisodeSources(episodeId);
+        const sources = data.sources || [];
+        const bestSource = sources.find(s => s.quality === '1080p') || sources[0];
         if (!bestSource) return res.json({ success: false });
         res.json({ success: true, url: bestSource.url });
     } catch (err) {
