@@ -213,6 +213,22 @@ io.on('connection', (socket) => {
         handleUserLeave(socket);
     });
 });
+// --- Proxy Route ---
+app.get('/api/proxy', async (req, res) => {
+    const targetUrl = req.query.url;
+    if (!targetUrl) return res.status(400).send("URL missing");
+
+    try {
+        const response = await axios.get(targetUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' },
+            timeout: 10000 
+        });
+        res.send(response.data);
+    } catch (err) {
+        console.error("Proxy error:", err.message);
+        res.status(500).send("Proxy error: " + err.message);
+    }
+});
 
 // ========== Helper: Fetch from multiple APIs ==========
 async function fetchFromMultipleAPIs(apis, encodedQuery) {
