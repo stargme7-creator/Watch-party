@@ -380,6 +380,11 @@ navigator.serviceWorker.register('/sw.js');
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
+            
+if (url.includes('app-castle.fdlow.com') || url.includes('nuvix')) {
+    return { type: 'iframe', id: url };
+}
+// ----------------------
             if (url.match(/\.(mp4|webm|ogg|m3u8)($|\?)/i)) return { type: 'raw', id: url };
             const ytRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
             const ytMatch = url.match(ytRegex);
