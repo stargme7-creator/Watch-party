@@ -220,8 +220,11 @@ app.get('/api/proxy', async (req, res) => {
 
     try {
         const response = await axios.get(targetUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' },
-            timeout: 10000 
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Referer': 'https://app-castle.fdlow.com/'
+            },
+            timeout: 10000
         });
         res.send(response.data);
     } catch (err) {
