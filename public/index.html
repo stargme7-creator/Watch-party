@@ -408,6 +408,13 @@ if (url.includes('app-castle.fdlow.com') || url.includes('nuvix')) {
         function renderActivePlayer(meta) {
             const container = document.getElementById('player-container');
             ytPlayer = null;
+            
+if (meta.type === 'iframe') {
+    activePlayerType = 'iframe';
+    container.innerHTML = `<iframe src="${meta.id}" width="100%" height="100%" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+    return;
+}
+// ----------------------
             if (meta.type === 'youtube') {
                 activePlayerType = 'youtube';
                 container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
