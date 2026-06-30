@@ -4,8 +4,15 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 const { Pool } = require('pg');
-const { Resend } = require('resend');
 const axios = require('axios');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken'); // FIXED: Secure token ke liye library add ki
+
+const SALT_ROUNDS = 10;
+const JWT_SECRET = process.env.JWT_SECRET || 'apna-super-secret-key-yahan-rakhein'; // FIXED: Token sign karne ke liye secret key
+
+// FIXED: Proxy security whitelist domains
+const ALLOWED_DOMAINS = ['api.anify.tv', 'anime-api-v2.onrender.com'];
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -20,8 +27,6 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const initDb = async () => {
     try {
         await pool.query(`
@@ -30,7 +35,7 @@ const initDb = async () => {
                 username VARCHAR(50) UNIQUE NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
-                is_verified BOOLEAN DEFAULT FALSE,
+                is_verified BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
@@ -45,6 +50,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// ========== LOGIN (bcrypt compare + FIXED: Secure JWT Token) ==========
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -54,11 +60,11 @@ app.post('/api/login', async (req, res) => {
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         if (result.rows.length > 0) {
             const user = result.rows[0];
-            if (user.password === password) {
-                if (!user.is_verified) {
-                    return res.json({ success: false, message: 'Pehle email verify karein!' });
-                }
-                return res.json({ success: true, username: user.username, token: 'wp-token-' + user.id + '-' + Date.now() });
+            const passwordMatches = await bcrypt.compare(password, user.password);
+            if (passwordMatches) {
+                // FIXED: Guessable token ki jagah cryptographically secure JWT token banaya
+                const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+                return res.json({ success: true, username: user.username, token: token });
             } else {
                 return res.json({ success: false, message: 'Password galat hai!' });
             }
@@ -71,6 +77,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// ========== REGISTER (bcrypt hash + FIXED: Secure JWT Token) ==========
 app.post('/api/register', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !email || !password) {
@@ -81,35 +88,31 @@ app.post('/api/register', async (req, res) => {
         if (userExists.rows.length > 0) {
             return res.json({ success: false, message: 'Username ya Email pehle se register hai!' });
         }
-        await pool.query('INSERT INTO users (username, email, password, is_verified) VALUES ($1, $2, $3, $4)', [username, email, password, false]);
-        const verificationLink = `https://${req.get('host')}/verify?email=${encodeURIComponent(email)}`;
-        const { data, error } = await resend.emails.send({
-            from: 'onboarding@resend.dev',
-            to: email,
-            subject: 'Verify Your WatchParty Account',
-            html: `<p>Welcome! Account verify karne ke liye niche click karein:</p><a href="${verificationLink}">Verify Email</a>`
+
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+        const newUser = await pool.query(
+            'INSERT INTO users (username, email, password, is_verified) VALUES ($1, $2, $3, $4) RETURNING id',
+            [username, email, hashedPassword, true]
+        );
+
+        const newUserId = newUser.rows[0].id;
+        // FIXED: Registration par bhi secure JWT token generate kiya
+        const token = jwt.sign({ id: newUserId, username: username }, JWT_SECRET, { expiresIn: '7d' });
+
+        return res.json({
+            success: true,
+            username: username,
+            token: token,
+            message: 'Account ban gaya!'
         });
-        if (error) {
-            console.error("Email send error:", error);
-            return res.json({ success: true, username: username, token: 'wp-token-new-' + Date.now(), message: 'Registered! Lekin verification email bhejne me problem hui. Contact support.' });
-        }
-        console.log("Verification email sent:", data?.id);
-        return res.json({ success: true, username: username, token: 'wp-token-new-' + Date.now(), message: 'Registered! Email check karke verify karein.' });
     } catch (err) {
         console.error(err);
         return res.json({ success: false, message: 'Registration Database Error!' });
     }
 });
 
-app.get('/verify', async (req, res) => {
-    const { email } = req.query;
-    try {
-        await pool.query('UPDATE users SET is_verified = TRUE WHERE email = $1', [email]);
-        res.send("<h1>Verified!</h1><p>Aapka account verify ho gaya hai. Ab aap login kar sakte hain.</p>");
-    } catch (err) { res.status(500).send("Verification Failed."); }
-});
-
-// ---------- ROOM MANAGEMENT (SECURITY FIX) ----------
+// ---------- ROOM MANAGEMENT ----------
 const activeRooms = {};
 const createdRooms = new Set();
 
@@ -213,18 +216,24 @@ io.on('connection', (socket) => {
         handleUserLeave(socket);
     });
 });
-// --- Proxy Route ---
+
+// --- Proxy Route (FIXED: Security Whitelist + Timeout) ---
 app.get('/api/proxy', async (req, res) => {
     const targetUrl = req.query.url;
     if (!targetUrl) return res.status(400).send("URL missing");
 
     try {
+        const parsedUrl = new URL(targetUrl);
+        if (!ALLOWED_DOMAINS.includes(parsedUrl.hostname)) {
+            return res.status(403).send("Forbidden: This domain is not whitelisted.");
+        }
+
         const response = await axios.get(targetUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                 'Referer': 'https://app-castle.fdlow.com/'
             },
-            timeout: 10000
+            timeout: 5000 
         });
         res.send(response.data);
     } catch (err) {
@@ -237,8 +246,7 @@ app.get('/api/proxy', async (req, res) => {
 async function fetchFromMultipleAPIs(apis, encodedQuery) {
     for (const api of apis) {
         try {
-            const response = await axios.get(`${api.url}${encodedQuery}`, { timeout: 8000 });
-            // Check if response has data
+            const response = await axios.get(`${api.url}${encodedQuery}`, { timeout: 5000 }); 
             if (response.data && (response.data.results?.length > 0 || response.data.length > 0)) {
                 return { success: true, data: response.data, source: api.name };
             }
@@ -249,7 +257,7 @@ async function fetchFromMultipleAPIs(apis, encodedQuery) {
     return { success: false };
 }
 
-// ========== ANIME SEARCH APIs (with normalization) ==========
+// ========== ANIME SEARCH APIs ==========
 app.get('/api/anime/search', async (req, res) => {
     const { query } = req.query;
     if (!query) return res.json({ success: false, results: [] });
@@ -260,7 +268,7 @@ app.get('/api/anime/search', async (req, res) => {
     ];
 
     const result = await fetchFromMultipleAPIs(apis, encodeURIComponent(query));
-    
+
     if (result.success) {
         let normalizedData = [];
         if (result.source === 'Anify') {
@@ -278,18 +286,17 @@ app.get('/api/anime/search', async (req, res) => {
         }
         res.json({ success: true, results: normalizedData });
     } else {
-        res.json({ success: false, results: [], message: "All APIs failed" });
+        res.json({ success: false, results: [], message: "All APIs failed or down" });
     }
 });
 
-// Episodes endpoint (using Anify as primary, fallback to Anime-API if needed)
+// Episodes endpoint 
 app.get('/api/anime/episodes', async (req, res) => {
     const { id } = req.query;
     if (!id) return res.json({ success: false, episodes: [] });
 
     try {
-        // Try Anify first
-        let response = await axios.get(`https://api.anify.tv/info/${encodeURIComponent(id)}?type=anime`, { timeout: 8000 });
+        let response = await axios.get(`https://api.anify.tv/info/${encodeURIComponent(id)}?type=anime`, { timeout: 5000 });
         if (response.data && response.data.episodes && response.data.episodes.length > 0) {
             const episodes = response.data.episodes.map(ep => ({
                 id: ep.id,
@@ -298,13 +305,17 @@ app.get('/api/anime/episodes', async (req, res) => {
             }));
             return res.json({ success: true, episodes: episodes });
         }
-        // Fallback to Anime-API
-        const animeApiRes = await axios.get(`https://anime-api-v2.onrender.com/episodes/${encodeURIComponent(id)}`, { timeout: 8000 });
+    } catch (err) {
+        console.log("Anify episodes failed, trying fallback...");
+    }
+
+    try {
+        const animeApiRes = await axios.get(`https://anime-api-v2.onrender.com/episodes/${encodeURIComponent(id)}`, { timeout: 5000 });
         if (animeApiRes.data && animeApiRes.data.episodes && animeApiRes.data.episodes.length > 0) {
             const episodes = animeApiRes.data.episodes.map((ep, idx) => ({
                 id: ep.id,
-                number: idx+1,
-                title: ep.title || `Episode ${idx+1}`
+                number: idx + 1,
+                title: ep.title || `Episode ${idx + 1}`
             }));
             return res.json({ success: true, episodes: episodes });
         }
@@ -315,19 +326,17 @@ app.get('/api/anime/episodes', async (req, res) => {
     }
 });
 
-// Stream endpoint (using the same logic as before, but we'll reuse the episodeId format from Anify)
+// Stream endpoint
 app.get('/api/anime/stream', async (req, res) => {
     const { episodeId } = req.query;
     if (!episodeId) return res.json({ success: false });
 
     try {
-        // Try to get stream from Anify (if episodeId is from Anify)
-        const anifyRes = await axios.get(`https://api.anify.tv/watch/${encodeURIComponent(episodeId)}`, { timeout: 8000 });
+        const anifyRes = await axios.get(`https://api.anify.tv/watch/${encodeURIComponent(episodeId)}`, { timeout: 5000 });
         if (anifyRes.data && anifyRes.data.sources && anifyRes.data.sources.length > 0) {
             const bestSource = anifyRes.data.sources.find(s => s.quality === '1080p') || anifyRes.data.sources[0];
             if (bestSource && bestSource.url) return res.json({ success: true, url: bestSource.url });
         }
-        // If episodeId is from Anime-API, its format may be different. You can extend here.
         res.json({ success: false });
     } catch (err) {
         console.error("Stream error:", err.message);
