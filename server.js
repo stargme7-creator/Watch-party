@@ -6,17 +6,25 @@ const path = require('path');
 const { Pool } = require('pg');
 const axios = require('axios');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken'); // FIXED: Secure token ke liye library add ki
+const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit'); // FIXED: Rate limiting add ki
 
 const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || 'apna-super-secret-key-yahan-rakhein'; // FIXED: Token sign karne ke liye secret key
+const JWT_SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(64).toString('hex'); // FIXED: Strong random secret
 
-// FIXED: Proxy security whitelist domains
-const ALLOWED_DOMAINS = ['api.anify.tv', 'anime-api-v2.onrender.com'];
+// FIXED: Proxy security whitelist domains - streaming domains add kiye
+const ALLOWED_DOMAINS = ['api.anify.tv', 'anime-api-v2.onrender.com', 'app-castle.fdlow.com'];
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// FIXED: Rate limiter for auth routes
+const authLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 5,
+    message: { success: false, message: 'Bahut try kar liye, thoda wait karo' }
+});
 
 app.get('/manifest.json', (req, res) => {
     res.sendFile(path.join(__dirname, 'manifest.json'));
@@ -50,8 +58,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ========== LOGIN (bcrypt compare + FIXED: Secure JWT Token) ==========
-app.post('/api/login', async (req, res) => {
+// ========== LOGIN (bcrypt compare + FIXED: Rate limited) ==========
+app.post('/api/login', authLimiter, async (req, res) => { // FIXED: Rate limiter add
     const { email, password } = req.body;
     if (!email || !password) {
         return res.json({ success: false, message: 'Email aur Password zaroori hai!' });
@@ -62,7 +70,6 @@ app.post('/api/login', async (req, res) => {
             const user = result.rows[0];
             const passwordMatches = await bcrypt.compare(password, user.password);
             if (passwordMatches) {
-                // FIXED: Guessable token ki jagah cryptographically secure JWT token banaya
                 const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
                 return res.json({ success: true, username: user.username, token: token });
             } else {
@@ -77,8 +84,8 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// ========== REGISTER (bcrypt hash + FIXED: Secure JWT Token) ==========
-app.post('/api/register', async (req, res) => {
+// ========== REGISTER (bcrypt hash + FIXED: Rate limited) ==========
+app.post('/api/register', authLimiter, async (req, res) => { // FIXED: Rate limiter add
     const { username, email, password } = req.body;
     if (!username || !email || !password) {
         return res.json({ success: false, message: 'Saari fields bharna zaroori hai!' });
@@ -97,7 +104,6 @@ app.post('/api/register', async (req, res) => {
         );
 
         const newUserId = newUser.rows[0].id;
-        // FIXED: Registration par bhi secure JWT token generate kiya
         const token = jwt.sign({ id: newUserId, username: username }, JWT_SECRET, { expiresIn: '7d' });
 
         return res.json({
@@ -116,6 +122,22 @@ app.post('/api/register', async (req, res) => {
 const activeRooms = {};
 const createdRooms = new Set();
 
+// FIXED: Socket.IO authentication middleware
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+        return next(new Error('Authentication required'));
+    }
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        socket.userId = decoded.id;
+        socket.username = decoded.username;
+        next();
+    } catch (err) {
+        next(new Error('Invalid token'));
+    }
+});
+
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
@@ -124,17 +146,17 @@ io.on('connection', (socket) => {
         callback({ exists });
     });
 
-    socket.on('create-room', (roomId, username, callback) => {
+    socket.on('create-room', (roomId, callback) => {
         if (!createdRooms.has(roomId)) {
             createdRooms.add(roomId);
-            activeRooms[roomId] = { users: [], currentVideo: null };
+            activeRooms[roomId] = { users: [], currentVideo: null }; // FIXED: Room state initialize
             callback({ success: true, roomId });
         } else {
             callback({ success: false, message: 'Room already exists' });
         }
     });
 
-    socket.on('join-room', ({ roomId, username }) => {
+    socket.on('join-room', ({ roomId }) => { // FIXED: Username JWT se le rahe
         if (!createdRooms.has(roomId)) {
             socket.emit('room-error', { message: 'Room does not exist. Please create a new room first.' });
             return;
@@ -142,13 +164,12 @@ io.on('connection', (socket) => {
         if (!activeRooms[roomId]) {
             activeRooms[roomId] = { users: [], currentVideo: null };
         }
-        activeRooms[roomId].users = activeRooms[roomId].users.filter(u => u.username !== username);
-        const userObj = { id: socket.id, username: username };
+        activeRooms[roomId].users = activeRooms[roomId].users.filter(u => u.username !== socket.username);
+        const userObj = { id: socket.id, username: socket.username };
         activeRooms[roomId].users.push(userObj);
         socket.join(roomId);
         socket.roomId = roomId;
-        socket.username = username;
-        console.log(`${username} joined room: ${roomId}`);
+        console.log(`${socket.username} joined room: ${roomId}`);
         socket.to(roomId).emit('new-peer', socket.id);
         const usersList = activeRooms[roomId].users.map(u => u.username);
         io.to(roomId).emit('room-users-update', { users: usersList });
@@ -160,21 +181,19 @@ io.on('connection', (socket) => {
     socket.on('video-sync', (roomId, data) => {
         if (activeRooms[roomId]) {
             if (data.action === 'loadNewVideo') {
-                activeRooms[roomId].currentVideo = data;
+                activeRooms[roomId].currentVideo = data; // FIXED: meta save ho raha
             } else if (data.action === 'play' || data.action === 'pause' || data.action === 'seek') {
                 if (activeRooms[roomId].currentVideo) {
                     activeRooms[roomId].currentVideo.action = data.action;
                     activeRooms[roomId].currentVideo.time = data.time;
-                } else {
-                    activeRooms[roomId].currentVideo = { action: data.action, time: data.time };
                 }
             }
             socket.to(roomId).emit('video-sync', data);
         }
     });
 
-    socket.on('chat-message', (roomId, username, msg) => {
-        io.to(roomId).emit('receive-chat', { user: username, msg: msg });
+    socket.on('chat-message', (roomId, msg) => { // FIXED: Username JWT se
+        io.to(roomId).emit('receive-chat', { user: socket.username, msg: msg });
     });
 
     socket.on('reaction', (roomId, emoji) => {
@@ -209,11 +228,14 @@ io.on('connection', (socket) => {
 
     socket.on('leave-room', (roomId) => {
         handleUserLeave(socket);
+        socket.roomId = null; // FIXED: Double fire prevent
         socket.leave(roomId);
     });
 
     socket.on('disconnect', () => {
-        handleUserLeave(socket);
+        if (socket.roomId) { // FIXED: Double fire prevent
+            handleUserLeave(socket);
+        }
     });
 });
 
@@ -326,7 +348,7 @@ app.get('/api/anime/episodes', async (req, res) => {
     }
 });
 
-// Stream endpoint
+// Stream endpoint (FIXED: Fallback add kiya)
 app.get('/api/anime/stream', async (req, res) => {
     const { episodeId } = req.query;
     if (!episodeId) return res.json({ success: false });
@@ -335,6 +357,16 @@ app.get('/api/anime/stream', async (req, res) => {
         const anifyRes = await axios.get(`https://api.anify.tv/watch/${encodeURIComponent(episodeId)}`, { timeout: 5000 });
         if (anifyRes.data && anifyRes.data.sources && anifyRes.data.sources.length > 0) {
             const bestSource = anifyRes.data.sources.find(s => s.quality === '1080p') || anifyRes.data.sources[0];
+            if (bestSource && bestSource.url) return res.json({ success: true, url: bestSource.url });
+        }
+    } catch (err) {
+        console.log("Anify stream failed, trying fallback...");
+    }
+
+    try {
+        const fallbackRes = await axios.get(`https://anime-api-v2.onrender.com/watch/${encodeURIComponent(episodeId)}`, { timeout: 5000 });
+        if (fallbackRes.data && fallbackRes.data.sources && fallbackRes.data.sources.length > 0) {
+            const bestSource = fallbackRes.data.sources.find(s => s.quality === '1080p') || fallbackRes.data.sources[0];
             if (bestSource && bestSource.url) return res.json({ success: true, url: bestSource.url });
         }
         res.json({ success: false });
