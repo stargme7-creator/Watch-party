@@ -100,7 +100,7 @@ navigator.serviceWorker.register('/sw.js');
             </button>
         </div>
 
-        <!-- ANIME SEARCH SECTION (ADDED) -->
+        <!-- ANIME SEARCH SECTION -->
         <div class="panel-bg p-3 rounded-lg">
             <div class="flex gap-2">
                 <input type="text" id="anime-search-input" placeholder="Anime search (e.g., Spy x Family)" class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white">
@@ -263,22 +263,25 @@ navigator.serviceWorker.register('/sw.js');
             if (action === 'create') {
                 const newRoomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
                 if (!socket || !socket.connected) {
-                    socket = io({ auth: { token: state.token } }); // FIXED: Token bhej rahe
+                    // ✅ Token bhej rahe hain
+                    socket = io({ auth: { token: state.token } });
                     await new Promise((resolve) => { socket.on('connect', resolve); });
                 }
-                socket.emit('create-room', newRoomId, (callback) => { // FIXED: username remove
-                    if (callback && callback.success) {
+                // ✅ Username original ki tarah bhej rahe hain
+                socket.emit('create-room', newRoomId, state.username, (response) => {
+                    if (response && response.success) {
                         state.roomId = newRoomId;
                         proceedToRoom();
                     } else {
-                        alert("Room creation failed: " + (callback?.message || "Unknown error"));
+                        alert("Room creation failed: " + (response?.message || "Unknown error"));
                     }
                 });
             } else if (action === 'join') {
                 const rInput = document.getElementById('join-room-id').value.trim().toUpperCase();
                 if (!rInput) return alert("Please enter a Room ID!");
                 if (!socket || !socket.connected) {
-                    socket = io({ auth: { token: state.token } }); // FIXED: Token bhej rahe
+                    // ✅ Token bhej rahe hain
+                    socket = io({ auth: { token: state.token } });
                     await new Promise((resolve) => { socket.on('connect', resolve); });
                 }
                 socket.emit('check-room', rInput, (response) => {
@@ -336,9 +339,11 @@ navigator.serviceWorker.register('/sw.js');
             document.getElementById('party-room-screen').classList.remove('hidden');
             document.body.className = "p-4";
             document.getElementById('room-display-id').innerText = state.roomId;
-            socket = io({ auth: { token: state.token } }); // FIXED: Token bhej rahe
+            // ✅ Token bhej rahe hain
+            socket = io({ auth: { token: state.token } });
             socket.on('connect', () => {
-                socket.emit('join-room', { roomId: state.roomId }); // FIXED: username remove
+                // ✅ Username original ki tarah bhej rahe hain
+                socket.emit('join-room', { roomId: state.roomId, username: state.username });
                 setupSocketListeners();
             });
             socket.on('connect_error', (err) => { console.error(err); alert("Connection error."); });
@@ -572,7 +577,8 @@ if (meta.type === 'iframe') {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
             if (!socket || !socket.connected) { alert("Connection lost."); return; }
-            socket.emit('chat-message', state.roomId, input.value.trim()); // FIXED: username remove
+            // ✅ Username original ki tarah bhej rahe hain
+            socket.emit('chat-message', state.roomId, state.username, input.value.trim());
             input.value = '';
             input.focus();
         }
@@ -703,4 +709,4 @@ if (meta.type === 'iframe') {
         <p>&copy; 2026 Watch Party App. <a href="https://www.termsfeed.com/live/bfae1679-234e-4d2b-bbd4-21438b92aa79" target="_blank">Privacy Policy</a></p>
     </footer>
 </body>
-                </html>
+                                                                                                          </html>
