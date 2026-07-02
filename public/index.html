@@ -21,7 +21,6 @@ navigator.serviceWorker.register('/sw.js');
         .msg-item { margin-bottom: 6px; padding: 4px 8px; border-bottom: 1px solid #1f2335; }
         .msg-user { color: #ff007f; font-weight: bold; }
         iframe, video { width: 100%; height: 100%; border-radius: 8px; border: none; }
-        /* Anime search extra styles */
         .search-results { max-height: 300px; overflow-y: auto; background: #1f2335; border-radius: 8px; margin-top: 8px; }
         .result-item { padding: 8px; border-bottom: 1px solid #2a2e45; cursor: pointer; }
         .result-item:hover { background: #2a2e45; }
@@ -183,7 +182,6 @@ navigator.serviceWorker.register('/sw.js');
             ]
         };
 
-        // ========== AUTH FUNCTIONS (intact) ==========
         function toggleAuthForm(mode) {
             const loginF = document.getElementById('login-form');
             const regF = document.getElementById('register-form');
@@ -261,27 +259,26 @@ navigator.serviceWorker.register('/sw.js');
             document.getElementById('register-form').classList.add('hidden');
         }
 
-        // ========== ROOM FUNCTIONS (unchanged) ==========
         async function enterPartyRoom(action) {
             if (action === 'create') {
                 const newRoomId = 'ROOM_' + Math.floor(1000 + Math.random() * 9000);
                 if (!socket || !socket.connected) {
-                    socket = io();
+                    socket = io({ auth: { token: state.token } }); // FIXED: Token bhej rahe
                     await new Promise((resolve) => { socket.on('connect', resolve); });
                 }
-                socket.emit('create-room', newRoomId, state.username, (response) => {
-                    if (response && response.success) {
+                socket.emit('create-room', newRoomId, (callback) => { // FIXED: username remove
+                    if (callback && callback.success) {
                         state.roomId = newRoomId;
                         proceedToRoom();
                     } else {
-                        alert("Room creation failed: " + (response?.message || "Unknown error"));
+                        alert("Room creation failed: " + (callback?.message || "Unknown error"));
                     }
                 });
             } else if (action === 'join') {
                 const rInput = document.getElementById('join-room-id').value.trim().toUpperCase();
                 if (!rInput) return alert("Please enter a Room ID!");
                 if (!socket || !socket.connected) {
-                    socket = io();
+                    socket = io({ auth: { token: state.token } }); // FIXED: Token bhej rahe
                     await new Promise((resolve) => { socket.on('connect', resolve); });
                 }
                 socket.emit('check-room', rInput, (response) => {
@@ -295,15 +292,53 @@ navigator.serviceWorker.register('/sw.js');
             }
         }
 
+        function resetPlayerState() {
+            if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+                try { ytPlayer.destroy(); } catch (e) { /* ignore */ }
+            }
+            ytPlayer = null;
+            activePlayerType = null;
+            ignoreSyncEvents = false;
+
+            const container = document.getElementById('player-container');
+            if (container) {
+                container.innerHTML = `
+                    <div id="fallback-placeholder" class="w-full h-full flex flex-col items-center justify-center text-gray-500 p-4 text-center">
+                        <i class="fa-solid fa-film text-4xl mb-2"></i>
+                        <p class="font-semibold text-sm text-gray-300">YouTube, Dailymotion, MP4 ya Anime Search se video lao</p>
+                        <p class="text-xs text-gray-500 mt-1">Anime search karo, episode select karo, phir sab screen pe sync hoga</p>
+                    </div>
+                `;
+            }
+
+            const searchResults = document.getElementById('search-results');
+            const episodesList = document.getElementById('episodes-list');
+            if (searchResults) { searchResults.innerHTML = ''; searchResults.classList.add('hidden'); }
+            if (episodesList) { episodesList.innerHTML = ''; episodesList.classList.add('hidden'); }
+
+            const urlInput = document.getElementById('video-url-input');
+            if (urlInput) urlInput.value = '';
+            const animeInput = document.getElementById('anime-search-input');
+            if (animeInput) animeInput.value = '';
+        }
+
         function proceedToRoom() {
             if (socket) { socket.disconnect(); }
+
+            resetPlayerState();
+
+            const messagesBox = document.getElementById('messages');
+            if (messagesBox) messagesBox.innerHTML = '';
+            const userList = document.getElementById('user-list');
+            if (userList) userList.innerHTML = '';
+
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('party-room-screen').classList.remove('hidden');
             document.body.className = "p-4";
             document.getElementById('room-display-id').innerText = state.roomId;
-            socket = io();
+            socket = io({ auth: { token: state.token } }); // FIXED: Token bhej rahe
             socket.on('connect', () => {
-                socket.emit('join-room', { roomId: state.roomId, username: state.username });
+                socket.emit('join-room', { roomId: state.roomId }); // FIXED: username remove
                 setupSocketListeners();
             });
             socket.on('connect_error', (err) => { console.error(err); alert("Connection error."); });
@@ -320,12 +355,14 @@ navigator.serviceWorker.register('/sw.js');
             }
             Object.keys(peers).forEach(id => { if (peers[id]) peers[id].close(); delete peers[id]; });
             document.getElementById('remote-audios').innerHTML = '';
+
+            resetPlayerState();
+
             document.getElementById('party-room-screen').classList.add('hidden');
             document.getElementById('auth-screen').classList.remove('hidden');
             showLobbyView();
         }
 
-        // ========== MIC & WEBRTC ==========
         async function toggleMicPipeline() {
             const btn = document.getElementById('mic-toggle-btn');
             if (!state.micActive) {
@@ -376,15 +413,12 @@ navigator.serviceWorker.register('/sw.js');
             return pc;
         }
 
-        // ========== VIDEO FUNCTIONS (unchanged) ==========
         function parseVideoId(url) {
             if (!url) return null;
             url = url.trim();
-            
 if (url.includes('app-castle.fdlow.com') || url.includes('nuvix')) {
     return { type: 'iframe', id: url };
 }
-// ----------------------
             if (url.match(/\.(mp4|webm|ogg|m3u8)($|\?)/i)) return { type: 'raw', id: url };
             const ytRegex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
             const ytMatch = url.match(ytRegex);
@@ -407,14 +441,16 @@ if (url.includes('app-castle.fdlow.com') || url.includes('nuvix')) {
 
         function renderActivePlayer(meta) {
             const container = document.getElementById('player-container');
+
+            if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+                try { ytPlayer.destroy(); } catch (e) { /* ignore */ }
+            }
             ytPlayer = null;
-            
 if (meta.type === 'iframe') {
     activePlayerType = 'iframe';
     container.innerHTML = `<iframe src="/api/proxy?url=${encodeURIComponent(meta.id)}" width="100%" height="100%" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
     return;
 }
-// ----------------------
             if (meta.type === 'youtube') {
                 activePlayerType = 'youtube';
                 container.innerHTML = `<div id="yt-iframe-placeholder" class="w-full h-full"></div>`;
@@ -460,7 +496,6 @@ if (meta.type === 'iframe') {
             });
         }
 
-        // ========== ANIME SEARCH FUNCTIONS (ADDED) ==========
         async function searchAnime() {
             const query = document.getElementById('anime-search-input').value.trim();
             if (!query) return alert("Enter anime name to search");
@@ -479,7 +514,7 @@ if (meta.type === 'iframe') {
                 data.results.forEach(anime => {
                     const div = document.createElement('div');
                     div.className = 'result-item';
-                    div.innerHTML = `<strong>${anime.title}</strong><br><small class="text-gray-400">${anime.subOrDub || ''}</small>`;
+                    div.innerHTML = `<strong>${escapeHtml(anime.title)}</strong><br><small class="text-gray-400">${escapeHtml(anime.subOrDub || '')}</small>`;
                     div.onclick = () => fetchEpisodes(anime.id);
                     resultsDiv.appendChild(div);
                 });
@@ -533,12 +568,11 @@ if (meta.type === 'iframe') {
             }
         }
 
-        // ========== CHAT & REACTIONS (unchanged) ==========
         function sendMessage() {
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) return;
             if (!socket || !socket.connected) { alert("Connection lost."); return; }
-            socket.emit('chat-message', state.roomId, state.username, input.value.trim());
+            socket.emit('chat-message', state.roomId, input.value.trim()); // FIXED: username remove
             input.value = '';
             input.focus();
         }
@@ -567,7 +601,6 @@ if (meta.type === 'iframe') {
             }, 100);
         }
 
-        // ========== SOCKET LISTENERS (unchanged) ==========
         function setupSocketListeners() {
             socket.off('receive-chat');
             socket.off('video-sync');
@@ -670,4 +703,4 @@ if (meta.type === 'iframe') {
         <p>&copy; 2026 Watch Party App. <a href="https://www.termsfeed.com/live/bfae1679-234e-4d2b-bbd4-21438b92aa79" target="_blank">Privacy Policy</a></p>
     </footer>
 </body>
-                    </html>
+                </html>
